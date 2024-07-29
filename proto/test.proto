@@ -1,0 +1,38 @@
+syntax = "proto3";
+package proto;
+
+option go_package = "/;proto";
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+
+service TestService {
+    rpc Test(Request) returns (User);
+}
+
+message User {
+    string uuid = 1;
+    string name = 2;
+}
+
+message Request {
+    string uuid = 1;
+    google.protobuf.StringValue name = 2;
+    google.protobuf.Int32Value status = 3;
+    string description = 4;
+    optional string test = 5;
+    google.protobuf.StringValue mame = 6;
+    optional User user = 7;
+    repeated User users = 8;
+    repeated string address = 9;
+    repeated google.protobuf.StringValue meme=10; 
+    google.protobuf.Timestamp my_time = 11;
+    google.protobuf.Struct my_data_json = 12; 
+    google.protobuf.Struct my_data_json_map = 13;
+    google.protobuf.Timestamp my_data_date = 14; 
+    google.protobuf.Duration my_data_time = 15;
+    bytes my_byte = 16;
+}
