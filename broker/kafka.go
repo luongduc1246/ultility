@@ -13,7 +13,6 @@ type kafkaBroker struct {
 	addrs         []string
 	connected     bool
 	producer      sarama.SyncProducer
-	producerAsync sarama.AsyncProducer
 	groupId       string
 	consumerGroup sarama.ConsumerGroup
 	mu            sync.Mutex
@@ -58,7 +57,7 @@ func (consumer consumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession
 }
 
 func NewKafkaBroker(addrs []string, configs map[string]*sarama.Config, groupId string, otps *Options) *kafkaBroker {
-	if otps == nil {
+	if otps == nil || otps.Encoder == nil {
 		otps = &Options{
 			Encoder: json.JsonEncode{},
 		}
@@ -73,10 +72,6 @@ func NewKafkaBroker(addrs []string, configs map[string]*sarama.Config, groupId s
 func (k *kafkaBroker) Connect(ctx context.Context) (err error) {
 	if k.connected {
 		return nil
-	}
-	k.producerAsync, err = sarama.NewAsyncProducer(k.addrs, k.configs["producerAsync"])
-	if err != nil {
-		return err
 	}
 	k.producer, err = sarama.NewSyncProducer(k.addrs, k.configs["producer"])
 	if err != nil {
@@ -93,10 +88,6 @@ func (k *kafkaBroker) DisConnect(ctx context.Context) (err error) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	err = k.producer.Close()
-	if err == nil {
-		return err
-	}
-	err = k.producerAsync.Close()
 	if err == nil {
 		return err
 	}
@@ -137,15 +128,12 @@ func (kafka *kafkaBroker) Publish(ctx context.Context, topic string, message Mes
 		Value:    sarama.ByteEncoder(body),
 		Metadata: message.Metadata,
 	}
-	for {
-		select {
-		case kafka.producerAsync.Input() <- &producerMessage:
-		case err := <-kafka.producerAsync.Errors():
-			return err
-		case <-kafka.producerAsync.Successes():
-			return nil
-		}
+	_, _, err = kafka.producer.SendMessage(&producerMessage)
+	if err != nil {
+		return err
 	}
+
+	return nil
 }
 func (kafka *kafkaBroker) Subscribe(ctx context.Context, topic string, handler Handler) error {
 	for {
