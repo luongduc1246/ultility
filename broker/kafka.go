@@ -70,7 +70,7 @@ func NewKafkaBroker(addrs []string, configs map[string]*sarama.Config, groupId s
 		otps:    otps,
 	}
 }
-func (k *kafkaBroker) Connect() (err error) {
+func (k *kafkaBroker) Connect(ctx context.Context) (err error) {
 	if k.connected {
 		return nil
 	}
@@ -89,7 +89,7 @@ func (k *kafkaBroker) Connect() (err error) {
 	k.connected = true
 	return nil
 }
-func (k *kafkaBroker) DisConnect() (err error) {
+func (k *kafkaBroker) DisConnect(ctx context.Context) (err error) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	err = k.producer.Close()
