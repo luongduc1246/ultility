@@ -6,7 +6,7 @@ type Handler func(message Message) error
 
 type Broker interface {
 	Connect(ctx context.Context) error
-	Disconnect(ctx context.Context) error
+	DisConnect(ctx context.Context) error
 	Publish(ctx context.Context, topic string, message Message) error
 	Subscribe(ctx context.Context, topic string, handler Handler) error
 }
