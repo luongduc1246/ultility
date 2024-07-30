@@ -110,7 +110,7 @@ func (k *kafkaBroker) DisConnect(ctx context.Context) (err error) {
 	return nil
 }
 
-func (kafka *kafkaBroker) Publish(ctx context.Context, topic string, message *Message) error {
+func (kafka *kafkaBroker) Publish(ctx context.Context, topic string, message Message) error {
 	headers := make([]sarama.RecordHeader, 0)
 	for k, v := range message.Header {
 		key, err := kafka.otps.Encoder.Marshal(k)
