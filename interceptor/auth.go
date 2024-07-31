@@ -48,11 +48,11 @@ func AuthUnaryIntercepter(authFunc AuthFunc, pom PermisionOfMethod) grpc.UnarySe
 			if !ok {
 				return nil, status.Error(codes.InvalidArgument, "missing metadata")
 			}
-			token, ok := md["Authorization"]
+			token, ok := md["authorization"]
 			if !ok {
 				return nil, status.Error(codes.Internal, "token required")
 			}
-			device, ok := md["Device"]
+			device, ok := md["device"]
 			if !ok {
 				return nil, status.Error(codes.Internal, "device required")
 			}
@@ -85,11 +85,11 @@ func AuthStreamIntercepter(authFunc AuthFunc, pom PermisionOfMethod) grpc.Stream
 			if !ok {
 				return status.Error(codes.InvalidArgument, "missing metadata")
 			}
-			token, ok := md["Authorization"]
+			token, ok := md["authorization"]
 			if !ok {
 				return status.Error(codes.Internal, "token required")
 			}
-			device, ok := md["Device"]
+			device, ok := md["device"]
 			if !ok {
 				return status.Error(codes.Internal, "device required")
 			}
