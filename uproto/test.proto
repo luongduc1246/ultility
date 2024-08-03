@@ -9,14 +9,7 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
 
-service TestService {
-    rpc Test(Request) returns (User);
-}
 
-message User {
-    string uuid = 1;
-    string name = 2;
-}
 
 message Request {
     string uuid = 1;
@@ -25,8 +18,6 @@ message Request {
     string description = 4;
     optional string test = 5;
     google.protobuf.StringValue mame = 6;
-    optional User user = 7;
-    repeated User users = 8;
     repeated string address = 9;
     repeated google.protobuf.StringValue meme=10; 
     google.protobuf.Timestamp my_time = 11;
