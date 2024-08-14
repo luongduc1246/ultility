@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"sync"
 
 	"github.com/luongduc1246/ultility/gormdb"
 	"github.com/luongduc1246/ultility/reqparams"
@@ -9,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/schema"
 )
 
 type Postgres struct {
@@ -290,13 +292,16 @@ func (pgr Postgres) DeletePermanently(ctx context.Context, info interface{}, ext
 }
 
 func (pgr Postgres) Search(ctx context.Context, reqPamrams *reqparams.Search, models interface{}, extra ...interface{}) (err error) {
-	tx := pgr.db.Session(&gorm.Session{NewDB: true})
-	tx.Statement.Parse(models)
+	tx := pgr.db
+	stm, err := schema.ParseWithSpecialTableName(models, &sync.Map{}, tx.Statement.NamingStrategy, "")
+	if err != nil {
+		return err
+	}
 	cs := gormdb.NewClauseSearch()
-	cs.Parse(tx.Statement.Schema, reqPamrams)
+	cs.Parse(stm, reqPamrams)
 	exps := cs.Build()
 	fieldPreload := gormdb.NewFieldPreload()
-	fieldPreload.Parse(tx.Statement.Schema, reqPamrams.Field)
+	fieldPreload.Parse(stm, reqPamrams.Field)
 	fb := fieldPreload.BuildPreload(tx)
 	/* làm việc với extra */
 	scopes, clauses := parseExtra(extra...)
@@ -314,13 +319,16 @@ func (pgr Postgres) Search(ctx context.Context, reqPamrams *reqparams.Search, mo
 	return nil
 }
 func (pgr Postgres) SearchSoftDelete(ctx context.Context, reqPamrams *reqparams.Search, models interface{}, extra ...interface{}) (err error) {
-	tx := pgr.db.Session(&gorm.Session{NewDB: true})
-	tx.Statement.Parse(models)
+	tx := pgr.db
+	stm, err := schema.ParseWithSpecialTableName(models, &sync.Map{}, tx.Statement.NamingStrategy, "")
+	if err != nil {
+		return err
+	}
 	cs := gormdb.NewClauseSearch()
-	cs.Parse(tx.Statement.Schema, reqPamrams)
+	cs.Parse(stm, reqPamrams)
 	exps := cs.Build()
 	fieldPreload := gormdb.NewFieldPreload()
-	fieldPreload.Parse(tx.Statement.Schema, reqPamrams.Field)
+	fieldPreload.Parse(stm, reqPamrams.Field)
 	fb := fieldPreload.BuildPreload(tx)
 	/* làm việc với extra */
 	scopes, clauses := parseExtra(extra...)
