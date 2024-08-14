@@ -87,27 +87,27 @@ func TestFieldPreload(t *testing.T) {
 	}
 	tx := instance
 	go func() {
-		stm, _ := schema.ParseWithSpecialTableName(&Role{}, &sync.Map{}, tx.Statement.NamingStrategy, "")
-
+		users := []Role{}
+		stm, _ := schema.ParseWithSpecialTableName(&users, &sync.Map{}, tx.Statement.NamingStrategy, "")
 		a := "uuid,name,permissions[name,uuid]"
 		f := reqparams.NewField()
 		f.Parse(a)
 		fp := NewFieldPreload()
 		fp.Parse(stm, f)
 		bx := fp.BuildPreload(tx)
-		users := []Role{}
+
 		bx.Debug().Find(&users)
 	}()
-	go func() {
 
-		tx.Statement.Parse(&Permission{})
+	go func() {
+		pers := []Permission{}
+		tx.Statement.Parse(&pers)
 		field := "uuid,name,roles[name,uuid]"
 		rqf := reqparams.NewField()
 		rqf.Parse(field)
 		nfr := NewFieldPreload()
 		nfr.Parse(tx.Statement.Schema, rqf)
 		brd := nfr.BuildPreload(tx)
-		pers := []Permission{}
 		brd.Debug().Find(&pers)
 
 	}()

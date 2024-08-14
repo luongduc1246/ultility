@@ -23,6 +23,10 @@ func NewPostgres(tx *gorm.DB) *Postgres {
 	}
 }
 
+func (pgr Postgres) GetDB() *gorm.DB {
+	return pgr.db
+}
+
 func (pgr Postgres) Create(ctx context.Context, model interface{}, extra ...interface{}) (err error) {
 	tx := pgr.db
 	scopes, clauses := parseExtra(extra...)

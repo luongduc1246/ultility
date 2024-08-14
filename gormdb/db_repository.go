@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/luongduc1246/ultility/reqparams"
+	"gorm.io/gorm"
 )
 
 type BatchInfo struct {
@@ -12,6 +13,7 @@ type BatchInfo struct {
 }
 
 type DBRepository interface {
+	GetDB() *gorm.DB
 	Create(context.Context, interface{}, ...interface{}) error
 	CreateBatch(context.Context, interface{}, ...interface{}) error
 	Update(context.Context, interface{}, ...interface{}) error
