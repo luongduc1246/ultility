@@ -290,7 +290,7 @@ func (pgr Postgres) DeletePermanently(ctx context.Context, info interface{}, ext
 }
 
 func (pgr Postgres) Search(ctx context.Context, reqPamrams *reqparams.Search, models interface{}, extra ...interface{}) (err error) {
-	tx := pgr.db
+	tx := pgr.db.Session(&gorm.Session{NewDB: true})
 	tx.Statement.Parse(models)
 	cs := gormdb.NewClauseSearch()
 	cs.Parse(tx.Statement.Schema, reqPamrams)
@@ -314,7 +314,7 @@ func (pgr Postgres) Search(ctx context.Context, reqPamrams *reqparams.Search, mo
 	return nil
 }
 func (pgr Postgres) SearchSoftDelete(ctx context.Context, reqPamrams *reqparams.Search, models interface{}, extra ...interface{}) (err error) {
-	tx := pgr.db
+	tx := pgr.db.Session(&gorm.Session{NewDB: true})
 	tx.Statement.Parse(models)
 	cs := gormdb.NewClauseSearch()
 	cs.Parse(tx.Statement.Schema, reqPamrams)
