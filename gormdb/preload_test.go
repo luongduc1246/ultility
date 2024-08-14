@@ -1,14 +1,14 @@
 package gormdb
 
 import (
-	"fmt"
 	"os"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/luongduc1246/ultility/reqparams"
 
 	"github.com/google/uuid"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
@@ -55,6 +55,7 @@ type Permission struct {
 	Name        string    `gorm:"unique;not null;size:500"`
 	Status      int       `gorm:"not null"`
 	Description *string
+	Roles       []Role `gorm:"many2many:role_permissions;"`
 }
 
 type Role struct {
@@ -79,22 +80,36 @@ func TestFieldPreload(t *testing.T) {
 	if !bol {
 		txtUri = "postgres://luongduc1246:Postgr3s@76uC1246@localhost:2235/naturalbuilder"
 	}
-	instance, _ = gorm.Open(postgres.Open(txtUri))
+	instance, _ = Connect(DbConfig{Url: txtUri})
 	// users := []User{}
 	instance.NamingStrategy = schema.NamingStrategy{
 		TablePrefix: "auth.ntb_", // table name prefix, table for `User` would be `goqh_users`
 	}
-	tx := instance.Session(&gorm.Session{})
-	tx.Statement.Parse(&Role{})
-	fmt.Printf("%+v \n", tx.Statement.Schema)
-	a := "uuid,name,permissions[name,uuid]"
-	f := reqparams.NewField()
-	f.Parse(a)
-	fp := NewFieldPreload()
-	fp.Parse(tx.Statement.Schema, f)
-	fmt.Println(fp)
-	bx := fp.BuildPreload(tx)
-	users := []Role{}
-	bx.Debug().Find(&users)
-	fmt.Println(users[2])
+	tx := instance
+	go func() {
+		stm, _ := schema.ParseWithSpecialTableName(&Role{}, &sync.Map{}, tx.Statement.NamingStrategy, "")
+
+		a := "uuid,name,permissions[name,uuid]"
+		f := reqparams.NewField()
+		f.Parse(a)
+		fp := NewFieldPreload()
+		fp.Parse(stm, f)
+		bx := fp.BuildPreload(tx)
+		users := []Role{}
+		bx.Debug().Find(&users)
+	}()
+	go func() {
+
+		tx.Statement.Parse(&Permission{})
+		field := "uuid,name,roles[name,uuid]"
+		rqf := reqparams.NewField()
+		rqf.Parse(field)
+		nfr := NewFieldPreload()
+		nfr.Parse(tx.Statement.Schema, rqf)
+		brd := nfr.BuildPreload(tx)
+		pers := []Permission{}
+		brd.Debug().Find(&pers)
+
+	}()
+	time.Sleep(2 * time.Second)
 }

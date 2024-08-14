@@ -297,12 +297,12 @@ func (pgr Postgres) Search(ctx context.Context, reqPamrams *reqparams.Search, mo
 	if err != nil {
 		return err
 	}
-	cs := gormdb.NewClauseSearch()
-	cs.Parse(stm, reqPamrams)
-	exps := cs.Build()
 	fieldPreload := gormdb.NewFieldPreload()
 	fieldPreload.Parse(stm, reqPamrams.Field)
 	fb := fieldPreload.BuildPreload(tx)
+	cs := gormdb.NewClauseSearch()
+	cs.Parse(stm, reqPamrams)
+	exps := cs.Build()
 	/* làm việc với extra */
 	scopes, clauses := parseExtra(extra...)
 	if len(scopes) > 0 {
