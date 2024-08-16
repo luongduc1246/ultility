@@ -33,7 +33,7 @@ func (s *fieldSelect) parse(scm *schema.Schema, field *reqparams.Field) {
 		for key, f := range field.Relatives {
 			relations := scm.Relationships.Relations
 			if rs, ok := relations[key]; ok {
-				nameCache := rs.JoinTable.Table
+				nameCache := scm.Table + rs.JoinTable.Table
 				if join, exist := cacheJoin[nameCache]; exist {
 					s.Joins[nameCache] = join
 				} else {

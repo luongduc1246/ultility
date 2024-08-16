@@ -160,7 +160,7 @@ func parseFilterToFilterWhere(scm *schema.Schema, filter reqparams.IFilter, join
 		for key, f := range filter.GetRelatives() {
 			relations := scm.Relationships.Relations
 			if rs, ok := relations[key]; ok {
-				nameCache := rs.JoinTable.Table
+				nameCache := scm.Table + rs.JoinTable.Table
 				if join, exist := cacheJoin[nameCache]; exist {
 					joins[nameCache] = join
 				} else {

@@ -36,7 +36,7 @@ func (pgr Postgres) Create(ctx context.Context, model interface{}, extra ...inte
 	if len(clauses) > 0 {
 		tx = tx.Clauses(clauses...)
 	}
-	tx = tx.Debug().Create(model)
+	tx = tx.Create(model)
 	err = tx.Error
 	if err != nil {
 		switch er := err.(type) {
@@ -60,7 +60,7 @@ func (pgr Postgres) CreateBatch(ctx context.Context, models interface{}, extra .
 	if len(clauses) > 0 {
 		tx = tx.Clauses(clauses...)
 	}
-	tx = tx.Debug().Create(models)
+	tx = tx.Create(models)
 	err = tx.Error
 	if err != nil {
 		switch er := err.(type) {
@@ -85,7 +85,7 @@ func (pgr Postgres) Update(ctx context.Context, info interface{}, extra ...inter
 	if len(clauses) > 0 {
 		tx = tx.Clauses(clauses...)
 	}
-	tx = tx.Debug().Updates(info)
+	tx = tx.Updates(info)
 	err = tx.Error
 	if err != nil {
 		switch er := err.(type) {
@@ -117,7 +117,7 @@ func (pgr Postgres) UpdateBatch(ctx context.Context, infos []interface{}, extra 
 	tx = tx.Begin()
 	for _, info := range infos {
 		tx := tx.Session(&gorm.Session{Initialized: true})
-		txUp := tx.Debug().Updates(info)
+		txUp := tx.Updates(info)
 		err = txUp.Error
 		if err != nil {
 			tx.Rollback()
@@ -151,7 +151,7 @@ func (pgr Postgres) UpdateBatchWithBatchInfo(ctx context.Context, infos []gormdb
 		if len(clauses) > 0 {
 			tx = tx.Clauses(clauses...)
 		}
-		txUp := tx.Debug().Updates(info.Model)
+		txUp := tx.Updates(info.Model)
 		err = txUp.Error
 		if err != nil {
 			tx.Rollback()
@@ -186,7 +186,7 @@ func (pgr Postgres) AppendAssociation(ctx context.Context, asm *gormdb.Associati
 		}
 		for key, value := range asm.Associations {
 			tx := tx.Session(&gorm.Session{Initialized: true})
-			err = tx.Model(asm.Model).Debug().Clauses(clause.Returning{}).Association(key).Append(value.Model)
+			err = tx.Model(asm.Model).Clauses(clause.Returning{}).Association(key).Append(value.Model)
 			if err != nil {
 				switch er := err.(type) {
 				case *pgconn.PgError:
@@ -219,7 +219,7 @@ func (pgr Postgres) DeleteAssociation(ctx context.Context, asm *gormdb.Associati
 		}
 		for key, value := range asm.Associations {
 			tx := tx.Session(&gorm.Session{Initialized: true})
-			err = tx.Model(asm.Model).Debug().Clauses(clause.Returning{}).Association(key).Delete(value.Model)
+			err = tx.Model(asm.Model).Clauses(clause.Returning{}).Association(key).Delete(value.Model)
 			if err != nil {
 				return err
 			}
@@ -260,7 +260,7 @@ func (pgr Postgres) RevertDelete(ctx context.Context, infos []interface{}, extra
 	}
 	for _, info := range infos {
 		tx := tx.Session(&gorm.Session{Initialized: true})
-		txUp := tx.Debug().Unscoped().Clauses(clause.Returning{}).Model(info).Update("DeletedAt", nil)
+		txUp := tx.Unscoped().Clauses(clause.Returning{}).Model(info).Update("DeletedAt", nil)
 		err = txUp.Error
 		if err != nil {
 			tx.Rollback()
@@ -301,12 +301,12 @@ func (pgr Postgres) Search(ctx context.Context, reqPamrams *reqparams.Search, mo
 	if err != nil {
 		return err
 	}
-	fieldPreload := gormdb.NewFieldPreload()
-	fieldPreload.Parse(stm, reqPamrams.Field)
-	fb := fieldPreload.BuildPreload(tx)
 	cs := gormdb.NewClauseSearch()
 	cs.Parse(stm, reqPamrams)
 	exps := cs.Build()
+	fieldPreload := gormdb.NewFieldPreload()
+	fieldPreload.Parse(stm, reqPamrams.Field)
+	fb := fieldPreload.BuildPreload(tx)
 	/* làm việc với extra */
 	scopes, clauses := parseExtra(extra...)
 	if len(scopes) > 0 {
@@ -315,7 +315,7 @@ func (pgr Postgres) Search(ctx context.Context, reqPamrams *reqparams.Search, mo
 	if len(clauses) > 0 {
 		fb = fb.Clauses(clauses...)
 	}
-	fb.Debug().Clauses(exps...).Find(models)
+	fb.Clauses(exps...).Find(models)
 	err = fb.Error
 	if err != nil {
 		return err
@@ -342,7 +342,7 @@ func (pgr Postgres) SearchSoftDelete(ctx context.Context, reqPamrams *reqparams.
 	if len(clauses) > 0 {
 		fb = fb.Clauses(clauses...)
 	}
-	fb.Debug().Unscoped().Clauses(exps...).Where("deleted_at IS NOT NULL").Find(models)
+	fb.Unscoped().Clauses(exps...).Where("deleted_at IS NOT NULL").Find(models)
 	err = fb.Error
 	if err != nil {
 		return err

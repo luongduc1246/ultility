@@ -15,12 +15,50 @@ import (
 	"github.com/luongduc1246/ultility/random"
 )
 
-const HASH_SERECT_PASSWORD = "N@Tu12@lBui1d3"
+type SecretLoader interface {
+	SetHash(string)
+	GetHash() string
+	SetNonce(string)
+	GetNonce() string
+}
 
-const AES_NONCE = "N@Tu12@lBui1"
+type secret struct {
+	keyHash  string
+	keyNonce string
+}
 
-func CreateSecrecKeyWithTime() (secrecKey string, err error) {
-	tb := CreateTimeToArrayByte()
+func NewSecret(hash string, nonce string) *secret {
+	return &secret{
+		keyHash:  hash,
+		keyNonce: nonce,
+	}
+}
+
+func (s *secret) SetHash(key string) {
+	s.keyHash = key
+}
+func (s secret) GetHash() string {
+	return s.keyHash
+}
+func (s *secret) SetNonce(key string) {
+	s.keyNonce = key
+}
+func (s secret) GetNonce() string {
+	return s.keyNonce
+}
+
+type cryType struct {
+	secret SecretLoader
+}
+
+func NewCryType(secret SecretLoader) *cryType {
+	return &cryType{
+		secret: secret,
+	}
+}
+
+func (c cryType) CreateSecrecKeyWithTime() (secrecKey string) {
+	tb := c.CreateTimeToArrayByte()
 	l := 32 - len(tb)
 	r := []byte(random.CreateCodeRamdomNumerals(l))
 	key := append(r, tb...)
@@ -28,7 +66,7 @@ func CreateSecrecKeyWithTime() (secrecKey string, err error) {
 	return
 }
 
-func CreateTimeToArrayByte() []byte {
+func (c cryType) CreateTimeToArrayByte() []byte {
 	t := []byte(fmt.Sprint(time.Now().UTC().Unix()))
 	for i, s := range t {
 		if i%2 == 0 {
@@ -40,7 +78,7 @@ func CreateTimeToArrayByte() []byte {
 	return t
 }
 
-func CreateSecrecKey() (secrecKey string, err error) {
+func (cryType) CreateSecrecKey() (secrecKey string, err error) {
 	key := make([]byte, 16)
 	if _, err = rand.Read(key); err != nil {
 		return
@@ -50,14 +88,14 @@ func CreateSecrecKey() (secrecKey string, err error) {
 }
 
 // EncryHash is a hash function with sha256 and hmac
-func EncryHash(str string) (result string, err error) {
+func (c cryType) EncryHash(str string) (result string, err error) {
 	hash := sha256.New()
 	_, err = hash.Write([]byte(str))
 	if err != nil {
 		return "", err
 	}
 	result = fmt.Sprintf("%x", hash.Sum(nil))
-	hash = hmac.New(sha256.New, []byte(HASH_SERECT_PASSWORD))
+	hash = hmac.New(sha256.New, []byte(c.secret.GetHash()))
 	_, err = hash.Write([]byte(result))
 	if err != nil {
 		return "", err
@@ -66,19 +104,19 @@ func EncryHash(str string) (result string, err error) {
 	return result, nil
 }
 
-func EnCryptGob(secrecKey string, obj interface{}) (result string, err error) {
+func (c cryType) EnCryptGobAes(secrecKey string, obj interface{}) (result string, err error) {
 	var gobResult bytes.Buffer
 	end := gob.NewEncoder(&gobResult)
 	err = end.Encode(obj)
 	if err != nil {
 		return
 	}
-	result, err = EncryAES(secrecKey, string(gobResult.Bytes()))
+	result, err = c.EncryAES(secrecKey, string(gobResult.Bytes()))
 	return
 }
 
-func DecryptGob(secrettKey string, token string, obj interface{}) (err error) {
-	de, err := DecryAES(secrettKey, token)
+func (c cryType) DecryptGobAes(secrettKey string, token string, obj interface{}) (err error) {
+	de, err := c.DecryAES(secrettKey, token)
 	if err != nil {
 		return
 	}
@@ -89,7 +127,7 @@ func DecryptGob(secrettKey string, token string, obj interface{}) (err error) {
 }
 
 // EncryAES is encode function with AES
-func EncryAES(secretKey string, str string) (result string, err error) {
+func (c cryType) EncryAES(secretKey string, str string) (result string, err error) {
 	plaintext := []byte(str)
 	block, err := aes.NewCipher([]byte(secretKey))
 	if err != nil {
@@ -99,13 +137,13 @@ func EncryAES(secretKey string, str string) (result string, err error) {
 	if err != nil {
 		return
 	}
-	ciphertext := aesgcm.Seal(nil, []byte(AES_NONCE), plaintext, nil)
+	ciphertext := aesgcm.Seal(nil, []byte(c.secret.GetNonce()), plaintext, nil)
 	result = fmt.Sprintf("%x", ciphertext)
 	return result, err
 }
 
 // DecryAES decode function with AES
-func DecryAES(secretKey string, str string) (result string, err error) {
+func (c cryType) DecryAES(secretKey string, str string) (result string, err error) {
 	ciphertext, err := hex.DecodeString(str)
 	if err != nil {
 		return result, err
@@ -119,7 +157,7 @@ func DecryAES(secretKey string, str string) (result string, err error) {
 	if err != nil {
 		return result, err
 	}
-	plaintext, err := aesgcm.Open(nil, []byte(AES_NONCE), ciphertext, nil)
+	plaintext, err := aesgcm.Open(nil, []byte(c.secret.GetNonce()), ciphertext, nil)
 	if err != nil {
 		return result, err
 	}
