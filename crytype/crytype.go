@@ -111,7 +111,7 @@ func (c cryType) EnCryptGobAes(secrecKey string, obj interface{}) (result string
 	if err != nil {
 		return
 	}
-	result, err = c.EncryAES(secrecKey, string(gobResult.Bytes()))
+	result, err = c.EncryAES(secrecKey, gobResult.String())
 	return
 }
 
@@ -161,6 +161,6 @@ func (c cryType) DecryAES(secretKey string, str string) (result string, err erro
 	if err != nil {
 		return result, err
 	}
-	result = fmt.Sprintf("%s", plaintext)
+	result = string(plaintext)
 	return result, err
 }
