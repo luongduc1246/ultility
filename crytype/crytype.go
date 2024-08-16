@@ -47,17 +47,17 @@ func (s secret) GetNonce() string {
 	return s.keyNonce
 }
 
-type cryType struct {
+type CryType struct {
 	secret SecretLoader
 }
 
-func NewCryType(secret SecretLoader) *cryType {
-	return &cryType{
+func NewCryType(secret SecretLoader) *CryType {
+	return &CryType{
 		secret: secret,
 	}
 }
 
-func (c cryType) CreateSecrecKeyWithTime() (secrecKey string) {
+func (c CryType) CreateSecrecKeyWithTime() (secrecKey string) {
 	tb := c.CreateTimeToArrayByte()
 	l := 32 - len(tb)
 	r := []byte(random.CreateCodeRamdomNumerals(l))
@@ -66,7 +66,7 @@ func (c cryType) CreateSecrecKeyWithTime() (secrecKey string) {
 	return
 }
 
-func (c cryType) CreateTimeToArrayByte() []byte {
+func (c CryType) CreateTimeToArrayByte() []byte {
 	t := []byte(fmt.Sprint(time.Now().UTC().Unix()))
 	for i, s := range t {
 		if i%2 == 0 {
@@ -78,7 +78,7 @@ func (c cryType) CreateTimeToArrayByte() []byte {
 	return t
 }
 
-func (cryType) CreateSecrecKey() (secrecKey string, err error) {
+func (CryType) CreateSecrecKey() (secrecKey string, err error) {
 	key := make([]byte, 16)
 	if _, err = rand.Read(key); err != nil {
 		return
@@ -88,7 +88,7 @@ func (cryType) CreateSecrecKey() (secrecKey string, err error) {
 }
 
 // EncryHash is a hash function with sha256 and hmac
-func (c cryType) EncryHash(str string) (result string, err error) {
+func (c CryType) EncryHash(str string) (result string, err error) {
 	hash := sha256.New()
 	_, err = hash.Write([]byte(str))
 	if err != nil {
@@ -104,7 +104,7 @@ func (c cryType) EncryHash(str string) (result string, err error) {
 	return result, nil
 }
 
-func (c cryType) EnCryptGobAes(secrecKey string, obj interface{}) (result string, err error) {
+func (c CryType) EnCryptGobAes(secrecKey string, obj interface{}) (result string, err error) {
 	var gobResult bytes.Buffer
 	end := gob.NewEncoder(&gobResult)
 	err = end.Encode(obj)
@@ -115,7 +115,7 @@ func (c cryType) EnCryptGobAes(secrecKey string, obj interface{}) (result string
 	return
 }
 
-func (c cryType) DecryptGobAes(secrettKey string, token string, obj interface{}) (err error) {
+func (c CryType) DecryptGobAes(secrettKey string, token string, obj interface{}) (err error) {
 	de, err := c.DecryAES(secrettKey, token)
 	if err != nil {
 		return
@@ -127,7 +127,7 @@ func (c cryType) DecryptGobAes(secrettKey string, token string, obj interface{})
 }
 
 // EncryAES is encode function with AES
-func (c cryType) EncryAES(secretKey string, str string) (result string, err error) {
+func (c CryType) EncryAES(secretKey string, str string) (result string, err error) {
 	plaintext := []byte(str)
 	block, err := aes.NewCipher([]byte(secretKey))
 	if err != nil {
@@ -143,7 +143,7 @@ func (c cryType) EncryAES(secretKey string, str string) (result string, err erro
 }
 
 // DecryAES decode function with AES
-func (c cryType) DecryAES(secretKey string, str string) (result string, err error) {
+func (c CryType) DecryAES(secretKey string, str string) (result string, err error) {
 	ciphertext, err := hex.DecodeString(str)
 	if err != nil {
 		return result, err
