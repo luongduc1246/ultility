@@ -3,23 +3,19 @@ package gormdb
 import "gorm.io/gorm/clause"
 
 type Using struct {
-	Table string
+	Table clause.Table
 }
 
-func (d Using) Name() string {
+func (u Using) Name() string {
 	return "USING"
 }
 
-func (d Using) Build(builder clause.Builder) {
-	builder.WriteString("USING")
-
-	if d.Table != "" {
-		builder.WriteByte(' ')
-		builder.WriteString(d.Table)
-	}
+func (u Using) Build(builder clause.Builder) {
+	builder.WriteString("USING ")
+	builder.WriteQuoted(u.Table)
 }
 
-func (d Using) MergeClause(clause *clause.Clause) {
+func (u Using) MergeClause(clause *clause.Clause) {
 	clause.Name = ""
-	clause.Expression = d
+	clause.Expression = u
 }
