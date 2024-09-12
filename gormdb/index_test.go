@@ -11,5 +11,6 @@ func TestConnect(t *testing.T) {
 			Url: "postgres://luongduc1246:Postgr3s@76uC1246@localhost:2235/naturalbuilder",
 		},
 	)
+
 	fmt.Println(db, err)
 }
