@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/luongduc1246/ultility/gormdb"
@@ -39,6 +40,7 @@ func (pgr Postgres) Create(ctx context.Context, model interface{}, extra ...inte
 	tx = tx.Create(model)
 	err = tx.Error
 	if err != nil {
+		err = errors.Unwrap(err)
 		switch er := err.(type) {
 		case *pgconn.PgError:
 			if er.Code == "23505" {
@@ -69,6 +71,7 @@ func (pgr Postgres) CreateBatch(ctx context.Context, models interface{}, extra .
 	tx = tx.Create(models)
 	err = tx.Error
 	if err != nil {
+		err = errors.Unwrap(err)
 		switch er := err.(type) {
 		case *pgconn.PgError:
 			if er.Code == "23505" {
@@ -100,6 +103,7 @@ func (pgr Postgres) Update(ctx context.Context, info interface{}, extra ...inter
 	tx = tx.Updates(info)
 	err = tx.Error
 	if err != nil {
+		err = errors.Unwrap(err)
 		switch er := err.(type) {
 		case *pgconn.PgError:
 			if er.Code == "23505" {
@@ -173,6 +177,7 @@ func (pgr Postgres) UpdateBatchWithBatchInfo(ctx context.Context, infos []gormdb
 		err = txUp.Error
 		if err != nil {
 			tx.Rollback()
+			err = errors.Unwrap(err)
 			switch er := err.(type) {
 			case *pgconn.PgError:
 				if er.Code == "23505" {
@@ -180,6 +185,9 @@ func (pgr Postgres) UpdateBatchWithBatchInfo(ctx context.Context, infos []gormdb
 				}
 				if er.Code == "23503" {
 					return ErrorViolatesForeignKey
+				}
+				if er.Code == "55008" {
+					return ErrorManualInsertID
 				}
 				return err
 			default:
@@ -206,10 +214,14 @@ func (pgr Postgres) AppendAssociation(ctx context.Context, asm *gormdb.Associati
 			tx := tx.Session(&gorm.Session{Initialized: true})
 			err = tx.Model(asm.Model).Clauses(clause.Returning{}).Association(key).Append(value.Model)
 			if err != nil {
+				err = errors.Unwrap(err)
 				switch er := err.(type) {
 				case *pgconn.PgError:
 					if er.Code == "23503" {
 						return ErrorViolatesForeignKey
+					}
+					if er.Code == "55007" {
+						return ErrorManualInsertID
 					}
 					return err
 				default:
@@ -282,6 +294,7 @@ func (pgr Postgres) RevertDelete(ctx context.Context, infos []interface{}, extra
 		err = txUp.Error
 		if err != nil {
 			tx.Rollback()
+			err = errors.Unwrap(err)
 			switch er := err.(type) {
 			case *pgconn.PgError:
 				if er.Code == "23505" {
