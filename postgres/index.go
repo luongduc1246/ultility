@@ -29,7 +29,7 @@ func (pgr Postgres) GetDB() *gorm.DB {
 
 func (pgr Postgres) Create(ctx context.Context, model interface{}, extra ...interface{}) (err error) {
 	tx := pgr.db
-	scopes, clauses := parseExtra(extra...)
+	scopes, clauses, _ := parseExtra(extra...)
 	if len(scopes) > 0 {
 		tx = tx.Scopes(scopes...)
 	}
@@ -44,6 +44,12 @@ func (pgr Postgres) Create(ctx context.Context, model interface{}, extra ...inte
 			if er.Code == "23505" {
 				return ErrorExist
 			}
+			if er.Code == "23503" {
+				return ErrorViolatesForeignKey
+			}
+			if er.Code == "55007" {
+				return ErrorManualInsertID
+			}
 			return err
 		default:
 			return err
@@ -53,7 +59,7 @@ func (pgr Postgres) Create(ctx context.Context, model interface{}, extra ...inte
 }
 func (pgr Postgres) CreateBatch(ctx context.Context, models interface{}, extra ...interface{}) (err error) {
 	tx := pgr.db
-	scopes, clauses := parseExtra(extra...)
+	scopes, clauses, _ := parseExtra(extra...)
 	if len(scopes) > 0 {
 		tx = tx.Scopes(scopes...)
 	}
@@ -68,6 +74,12 @@ func (pgr Postgres) CreateBatch(ctx context.Context, models interface{}, extra .
 			if er.Code == "23505" {
 				return ErrorExist
 			}
+			if er.Code == "23503" {
+				return ErrorViolatesForeignKey
+			}
+			if er.Code == "55007" {
+				return ErrorManualInsertID
+			}
 			return err
 		default:
 			return err
@@ -78,7 +90,7 @@ func (pgr Postgres) CreateBatch(ctx context.Context, models interface{}, extra .
 
 func (pgr Postgres) Update(ctx context.Context, info interface{}, extra ...interface{}) (err error) {
 	tx := pgr.db
-	scopes, clauses := parseExtra(extra...)
+	scopes, clauses, _ := parseExtra(extra...)
 	if len(scopes) > 0 {
 		tx = tx.Scopes(scopes...)
 	}
@@ -96,6 +108,9 @@ func (pgr Postgres) Update(ctx context.Context, info interface{}, extra ...inter
 			if er.Code == "23503" {
 				return ErrorViolatesForeignKey
 			}
+			if er.Code == "55008" {
+				return ErrorManualInsertID
+			}
 			return err
 		default:
 			return err
@@ -107,7 +122,7 @@ func (pgr Postgres) Update(ctx context.Context, info interface{}, extra ...inter
 /* Cẩn thận khi dùng extra ( dùng extra là sử dụng chung cho tất cả câu truy vấn từng model ) */
 func (pgr Postgres) UpdateBatch(ctx context.Context, infos []interface{}, extra ...interface{}) (err error) {
 	tx := pgr.db
-	scopes, clauses := parseExtra(extra...)
+	scopes, clauses, _ := parseExtra(extra...)
 	if len(scopes) > 0 {
 		tx = tx.Scopes(scopes...)
 	}
@@ -129,6 +144,9 @@ func (pgr Postgres) UpdateBatch(ctx context.Context, infos []interface{}, extra 
 				if er.Code == "23503" {
 					return ErrorViolatesForeignKey
 				}
+				if er.Code == "55008" {
+					return ErrorManualInsertID
+				}
 				return err
 			default:
 				return err
@@ -144,7 +162,7 @@ func (pgr Postgres) UpdateBatchWithBatchInfo(ctx context.Context, infos []gormdb
 	for _, info := range infos {
 		/* làm việc với nhiều dữ liệu mà có sử dụng scope hoặc clause ta nên khởi tạo lại bằng cách dùng session */
 		tx := tx.Session(&gorm.Session{Initialized: true})
-		scopes, clauses := parseExtra(info.Extra...)
+		scopes, clauses, _ := parseExtra(info.Extra...)
 		if len(scopes) > 0 {
 			tx = tx.Scopes(scopes...)
 		}
@@ -177,7 +195,7 @@ func (pgr Postgres) UpdateBatchWithBatchInfo(ctx context.Context, infos []gormdb
 func (pgr Postgres) AppendAssociation(ctx context.Context, asm *gormdb.AssociationModel, extra ...interface{}) (err error) {
 	err = pgr.db.Transaction(func(txF *gorm.DB) error {
 		tx := txF
-		scopes, clauses := parseExtra(extra...)
+		scopes, clauses, _ := parseExtra(extra...)
 		if len(scopes) > 0 {
 			tx = tx.Scopes(scopes...)
 		}
@@ -210,7 +228,7 @@ func (pgr Postgres) AppendAssociation(ctx context.Context, asm *gormdb.Associati
 func (pgr Postgres) DeleteAssociation(ctx context.Context, asm *gormdb.AssociationModel, extra ...interface{}) (err error) {
 	err = pgr.db.Transaction(func(txF *gorm.DB) error {
 		tx := txF
-		scopes, clauses := parseExtra(extra...)
+		scopes, clauses, _ := parseExtra(extra...)
 		if len(scopes) > 0 {
 			tx = tx.Scopes(scopes...)
 		}
@@ -233,7 +251,7 @@ func (pgr Postgres) DeleteAssociation(ctx context.Context, asm *gormdb.Associati
 }
 func (pgr Postgres) Delete(ctx context.Context, infos interface{}, extra ...interface{}) (err error) {
 	tx := pgr.db
-	scopes, clauses := parseExtra(extra...)
+	scopes, clauses, _ := parseExtra(extra...)
 	if len(scopes) > 0 {
 		tx = tx.Scopes(scopes...)
 	}
@@ -251,7 +269,7 @@ func (pgr Postgres) Delete(ctx context.Context, infos interface{}, extra ...inte
 /* Cẩn thận khi dùng extra ( dùng extra là sử dụng chung cho tất cả câu truy vấn từng model ) */
 func (pgr Postgres) RevertDelete(ctx context.Context, infos []interface{}, extra ...interface{}) (err error) {
 	tx := pgr.db.Begin()
-	scopes, clauses := parseExtra(extra...)
+	scopes, clauses, _ := parseExtra(extra...)
 	if len(scopes) > 0 {
 		tx = tx.Scopes(scopes...)
 	}
@@ -280,7 +298,7 @@ func (pgr Postgres) RevertDelete(ctx context.Context, infos []interface{}, extra
 }
 func (pgr Postgres) DeletePermanently(ctx context.Context, info interface{}, extra ...interface{}) (err error) {
 	tx := pgr.db
-	scopes, clauses := parseExtra(extra...)
+	scopes, clauses, _ := parseExtra(extra...)
 	if len(scopes) > 0 {
 		tx = tx.Scopes(scopes...)
 	}
@@ -308,7 +326,7 @@ func (pgr Postgres) Search(ctx context.Context, reqPamrams *reqparams.Search, mo
 	fieldPreload.Parse(stm, reqPamrams.Field)
 	fb := fieldPreload.BuildPreload(tx)
 	/* làm việc với extra */
-	scopes, clauses := parseExtra(extra...)
+	scopes, clauses, _ := parseExtra(extra...)
 	if len(scopes) > 0 {
 		fb = fb.Scopes(scopes...)
 	}
@@ -335,7 +353,7 @@ func (pgr Postgres) SearchSoftDelete(ctx context.Context, reqPamrams *reqparams.
 	fieldPreload.Parse(stm, reqPamrams.Field)
 	fb := fieldPreload.BuildPreload(tx)
 	/* làm việc với extra */
-	scopes, clauses := parseExtra(extra...)
+	scopes, clauses, _ := parseExtra(extra...)
 	if len(scopes) > 0 {
 		fb = fb.Scopes(scopes...)
 	}
@@ -351,20 +369,21 @@ func (pgr Postgres) SearchSoftDelete(ctx context.Context, reqPamrams *reqparams.
 }
 
 /* phân tích extra ra scopes và clauses */
-func parseExtra(extra ...interface{}) ([]func(*gorm.DB) *gorm.DB, []clause.Expression) {
+func parseExtra(extra ...interface{}) ([]func(*gorm.DB) *gorm.DB, []clause.Expression, []interface{}) {
 	scopes := []func(*gorm.DB) *gorm.DB{}
 	clauses := []clause.Expression{}
+	ext := []interface{}{}
 	for _, val := range extra {
 		switch v := val.(type) {
 		case func(*gorm.DB) *gorm.DB:
 			scopes = append(scopes, v)
+		case clause.Expression:
+			clauses = append(clauses, v)
 		default:
-			if c, ok := v.(clause.Expression); ok {
-				clauses = append(clauses, c)
-			}
+			ext = append(ext, v)
 		}
 	}
-	return scopes, clauses
+	return scopes, clauses, ext
 }
 
 /* scope lấy dữ liệu cho update  sử dụng để kiểm tra cache*/
