@@ -7,12 +7,12 @@ import (
 )
 
 // Create token for UserClaim
-func CreateUserToken(userclaim *UserClaims) (string, error) {
+func CreateUserToken(userclaim *UserClaims, secretKey string) (string, error) {
 	userclaim.RegisteredClaims = jwt.RegisteredClaims{
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(365 * 24 * time.Hour)),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, userclaim)
-	serect, err := token.SignedString([]byte(SERECTKEY))
+	serect, err := token.SignedString([]byte(secretKey))
 	if err != nil {
 		return "", err
 	}
@@ -20,9 +20,9 @@ func CreateUserToken(userclaim *UserClaims) (string, error) {
 }
 
 // Parse token to UserClaim
-func ParseUserToken(t string) (userclaim *UserClaims, err error) {
+func ParseUserToken(t string, secretKey string) (userclaim *UserClaims, err error) {
 	token, err := jwt.ParseWithClaims(t, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(SERECTKEY), nil
+		return []byte(secretKey), nil
 	})
 	if err != nil {
 		return userclaim, err
@@ -34,21 +34,21 @@ func ParseUserToken(t string) (userclaim *UserClaims, err error) {
 	}
 }
 
-func CreateAuthenticateToken(claim *AuthenticateClaims) (string, error) {
+func CreateAuthenticateToken(claim *AuthenticateClaims, secretKey string) (string, error) {
 	claim.RegisteredClaims = jwt.RegisteredClaims{
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(4 * time.Minute)),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
-	serect, err := token.SignedString([]byte(SERECTKEY))
+	serect, err := token.SignedString([]byte(secretKey))
 	if err != nil {
 		return "", err
 	}
 	return serect, nil
 }
 
-func ParseAuthenticateToken(t string) (claim *AuthenticateClaims, err error) {
+func ParseAuthenticateToken(t string, secretKey string) (claim *AuthenticateClaims, err error) {
 	token, err := jwt.ParseWithClaims(t, &AuthenticateClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(SERECTKEY), nil
+		return []byte(secretKey), nil
 	})
 	if err != nil {
 		return nil, err

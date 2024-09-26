@@ -5,8 +5,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const SERECTKEY = "N@Tura1Bui1de12"
-
 type UserClaims struct {
 	Email                string    `json:"email"`
 	FirstName            string    `json:"firstname"`

@@ -22,7 +22,7 @@ func TestCreateUserToken(t *testing.T) {
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(365 * 24 * time.Hour)),
 		},
 	}
-	te, err := CreateUserToken(&uc)
+	te, err := CreateUserToken(&uc, "111111111111111")
 	t.Log(te, err)
 }
 
@@ -40,7 +40,7 @@ func BenchmarkU(b *testing.B) {
 				ExpiresAt: jwt.NewNumericDate(time.Now().Add(365 * 24 * time.Hour)),
 			},
 		}
-		CreateUserToken(&uc)
+		CreateUserToken(&uc, "111111111111111")
 	}
 }
 
@@ -58,7 +58,7 @@ func CreateUserT(userclaim *UserClaim) (string, error) {
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(365 * 24 * time.Hour)),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, userclaim)
-	serect, err := token.SignedString([]byte(SERECTKEY))
+	serect, err := token.SignedString([]byte("111111111111111"))
 	if err != nil {
 		return "", err
 	}
@@ -94,7 +94,7 @@ func BenchmarkT(b *testing.B) {
 
 func TestParseUserToken(t *testing.T) {
 	token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IiIsImZpcnN0bmFtZSI6IkR1YyIsImxhc3RuYW1lIjoiTHVvbmciLCJ1dWlkIjoiMjIxN2YzMTQtZWQ5ZC00YjdkLTg5NDItOTI2YTQ3ZDRmYjVjIiwicm9sZXMiOnsiTmFtZSI6ImFkbWluIiwicGVybWlzc2lvbnMiOlsiY3JlYXRlLm5hbWUiLCJkZWxldGUuYmFiZSIsImxhZHNrZmpsIiwibGFrZGpmbCIsImxhc2tkZmpsIiwibGFka2pmbGFqZiIsImxhZGprZmwiLCJsYWRqZmtsIiwibGFrZGZqIiwiYWxkamZsYWwiXX19.VCdwbi1JeuGuRUz9Sm2Uj8Xa_1dRWean9LYzkmUh_oU"
-	user, err := ParseUserToken(token)
+	user, err := ParseUserToken(token, "111111111111111")
 	fmt.Println(user, err)
 }
 
@@ -103,11 +103,11 @@ func TestCreateAuthToken(t *testing.T) {
 		UUID: uuid.New(),
 		Code: "aldsfjl",
 	}
-	tk, err := CreateAuthenticateToken(&au)
+	tk, err := CreateAuthenticateToken(&au, "111111111111111")
 	fmt.Println(tk, err)
 }
 func TestPearseAuthToken(t *testing.T) {
 	token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1dWlkIjoiYzhhOWQ4MmEtMjgyMi00ZTczLWFjZTYtOGU4ZGU4MGI2YmE0IiwiY29kZSI6ImFsZHNmamwifQ.8lelgYYOMD1QGCWJG0Rk4Q4rao1t2MUuxcCAZ09SfLY"
-	au, err := ParseAuthenticateToken(token)
+	au, err := ParseAuthenticateToken(token, "111111111111111")
 	fmt.Println(au, err)
 }
