@@ -57,12 +57,12 @@ func NewCryType(secret SecretLoader) *CryType {
 	}
 }
 
-func (c CryType) CreateSecrecKeyWithTime() (secrecKey string) {
+func (c CryType) CreateSecretKeyWithTime() (secretKey string) {
 	tb := c.CreateTimeToArrayByte()
 	l := 32 - len(tb)
 	r := []byte(random.CreateCodeRamdomNumerals(l))
 	key := append(r, tb...)
-	secrecKey = string(key)
+	secretKey = string(key)
 	return
 }
 
@@ -78,12 +78,12 @@ func (c CryType) CreateTimeToArrayByte() []byte {
 	return t
 }
 
-func (CryType) CreateSecrecKey() (secrecKey string, err error) {
+func (CryType) CreateSecretKey() (secretKey string, err error) {
 	key := make([]byte, 16)
 	if _, err = rand.Read(key); err != nil {
 		return
 	}
-	secrecKey = hex.EncodeToString(key)
+	secretKey = hex.EncodeToString(key)
 	return
 }
 
@@ -104,14 +104,14 @@ func (c CryType) EncryHash(str string) (result string, err error) {
 	return result, nil
 }
 
-func (c CryType) EnCryptGobAes(secrecKey string, obj interface{}) (result string, err error) {
+func (c CryType) EnCryptGobAes(secretKey string, obj interface{}) (result string, err error) {
 	var gobResult bytes.Buffer
 	end := gob.NewEncoder(&gobResult)
 	err = end.Encode(obj)
 	if err != nil {
 		return
 	}
-	result, err = c.EncryAES(secrecKey, gobResult.String())
+	result, err = c.EncryAES(secretKey, gobResult.String())
 	return
 }
 
