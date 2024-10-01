@@ -6,14 +6,14 @@ import (
 )
 
 func TestRandomAlpha(t *testing.T) {
-	code := CreateCodeRamdomAlphabet(6)
+	code := CreateCodeRandomAlphabet(6)
 	fmt.Println(code)
 }
 func TestRandomNumerals(t *testing.T) {
-	code := CreateCodeRamdomNumerals(6)
+	code := CreateCodeRandomNumerals(6)
 	fmt.Println(code)
 }
 func TestRandomDigit(t *testing.T) {
-	code := CreateCodeRamdomDigit(6)
+	code := CreateCodeRandomDigit(6)
 	fmt.Println(code)
 }

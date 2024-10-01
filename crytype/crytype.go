@@ -60,7 +60,7 @@ func NewCryType(secret SecretLoader) *CryType {
 func (c CryType) CreateSecretKeyWithTime() (secretKey string) {
 	tb := c.CreateTimeToArrayByte()
 	l := 32 - len(tb)
-	r := []byte(random.CreateCodeRamdomNumerals(l))
+	r := []byte(random.CreateCodeRandomNumerals(l))
 	key := append(r, tb...)
 	secretKey = string(key)
 	return
