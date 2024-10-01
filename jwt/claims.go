@@ -7,6 +7,8 @@ import (
 
 type UserClaims struct {
 	Email                string    `json:"email"`
+	Phone                string    `json:"phone"`
+	CountryCode          string    `json:"country_code"`
 	FirstName            string    `json:"firstname"`
 	LastName             string    `json:"lastname"`
 	Gender               string    `json:"gender"`
