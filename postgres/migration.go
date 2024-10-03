@@ -2,7 +2,19 @@ package postgres
 
 import "gorm.io/gorm"
 
-func MirgationModel(tx *gorm.DB, model interface{}) error {
+func MirgationModels(tx *gorm.DB, models ...interface{}) error {
+	for _, v := range models {
+		if !tx.Migrator().HasTable(v) {
+			err := tx.AutoMigrate(v)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func MirgationModelWithTrigger(tx *gorm.DB, model interface{}) error {
 	err := tx.AutoMigrate(model)
 	if err != nil {
 		return err
