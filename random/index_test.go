@@ -10,7 +10,7 @@ func TestRandomAlpha(t *testing.T) {
 	fmt.Println(code)
 }
 func TestRandomNumerals(t *testing.T) {
-	code := CreateCodeRandomNumerals(6)
+	code := CreateCodeRandomNumerals(10)
 	fmt.Println(code)
 }
 func TestRandomDigit(t *testing.T) {
