@@ -1,6 +1,7 @@
 package reqparams
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -31,17 +32,10 @@ func (e ErrParseFilterQuery) Error() string {
 	return str.String()
 }
 
-type ErrParseSortQuery struct {
-	Index string
-	Char  string
+type ErrorSort struct {
+	At string
 }
 
-func (e ErrParseSortQuery) Error() string {
-	var str strings.Builder
-	str.WriteString(`sort query incorrect format at "{index:`)
-	str.WriteString(e.Index)
-	str.WriteString(`,value:`)
-	str.WriteString(e.Char)
-	str.WriteString(`}"`)
-	return str.String()
+func (e ErrorSort) Error() string {
+	return fmt.Sprintf("query incorrect format at '%v'", e.At)
 }

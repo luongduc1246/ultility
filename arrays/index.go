@@ -7,6 +7,21 @@ func ConvertToSliceInterface[T any](t []T) []interface{} {
 	}
 	return s
 }
+func ConvertSliceInterfaceToSliceType[T any](elm []interface{}) []T {
+	s := make([]T, len(elm))
+	for _, v := range elm {
+		e, ok := v.(T)
+		if ok {
+			s = append(s, e)
+		}
+	}
+	return s
+}
+func ConvertSliceTypeToSliceType[T, E any](elm []E) []T {
+	iter := ConvertToSliceInterface[E](elm)
+	s := ConvertSliceInterfaceToSliceType[T](iter)
+	return s
+}
 
 func FindIndex[T comparable](a []T, s T) (index int) {
 	for i, v := range a {

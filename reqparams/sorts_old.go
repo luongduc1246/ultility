@@ -1,8 +1,6 @@
 package reqparams
 
 import (
-	"fmt"
-
 	"github.com/luongduc1246/ultility/structure"
 
 	"golang.org/x/text/cases"
@@ -56,9 +54,14 @@ func queryToSortOld(s string, sort *SortOld) (err error) {
 					}
 					peek.Orders = append(peek.Orders, order)
 				} else {
-					return ErrParseSortQuery{
-						Index: fmt.Sprint(i),
-						Char:  string(v),
+					var txtError string
+					if i < indexStart {
+						txtError = s[i:indexStart]
+					} else {
+						txtError = s[indexStart:i]
+					}
+					return ErrorSort{
+						At: txtError,
 					}
 				}
 			} else {

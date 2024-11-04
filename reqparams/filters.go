@@ -18,7 +18,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/luongduc1246/ultility/arrays"
 	"github.com/luongduc1246/ultility/structure"
 
 	"golang.org/x/text/cases"
@@ -92,110 +91,144 @@ type Equals Likes
 
 func expFromString(filterKey, column, value string) Exp {
 	var exp Exp
-	queryValue, err := (url.QueryUnescape(value))
-	if err != nil {
-		return exp
-	}
 	switch FilterKey(filterKey) {
 	case EQ:
+		queryValue, err := (url.QueryUnescape(value))
+		if err != nil {
+			return exp
+		}
 		exp = Eq{
 			Column: column,
 			Value:  queryValue,
 		}
 	case NEQ:
+		queryValue, err := (url.QueryUnescape(value))
+		if err != nil {
+			return exp
+		}
 		exp = Neq{
 			Column: column,
 			Value:  queryValue,
 		}
 	case LT:
+		queryValue, err := (url.QueryUnescape(value))
+		if err != nil {
+			return exp
+		}
 		exp = Lt{
 			Column: column,
 			Value:  queryValue,
 		}
 	case LTE:
+		queryValue, err := (url.QueryUnescape(value))
+		if err != nil {
+			return exp
+		}
 		exp = Lte{
 			Column: column,
 			Value:  queryValue,
 		}
 	case GT:
+		queryValue, err := (url.QueryUnescape(value))
+		if err != nil {
+			return exp
+		}
 		exp = Gt{
 			Column: column,
 			Value:  queryValue,
 		}
 	case GTE:
+		queryValue, err := (url.QueryUnescape(value))
+		if err != nil {
+			return exp
+		}
 		exp = Gte{
 			Column: column,
 			Value:  queryValue,
 		}
 	case LIKE:
+		queryValue, err := (url.QueryUnescape(value))
+		if err != nil {
+			return exp
+		}
 		exp = Like{
 			Column: column,
 			Value:  queryValue,
 		}
 	case IN:
+		in := []interface{}{}
 		vals := strings.Split(value, ";")
 		if len(vals) == 0 {
 			return exp
 		}
-		for i, v := range vals {
+		for _, v := range vals {
 			queryVal, err := (url.QueryUnescape(v))
 			if err == nil {
-				vals[i] = queryVal
+				in = append(in, queryVal)
 			}
 		}
-		in := arrays.ConvertToSliceInterface(vals)
 		exp = In{
 			Column: column,
 			Values: in,
 		}
 	// Làm việc với Json
 	case EXTRACT:
+		queryValue, err := (url.QueryUnescape(value))
+		if err != nil {
+			return exp
+		}
 		exp = Extract{
 			Column: column,
 			Value:  queryValue,
 		}
 	case CONTAINS:
+		queryValue, err := (url.QueryUnescape(value))
+		if err != nil {
+			return exp
+		}
 		exp = Contains{
 			Column: column,
 			Value:  queryValue,
 		}
 	case HASKEY:
+		has := []string{}
 		vals := strings.Split(value, ";")
 		if len(vals) == 0 {
 			return exp
 		}
-		for i, v := range vals {
+		for _, v := range vals {
 			queryVal, err := (url.QueryUnescape(v))
 			if err == nil {
-				vals[i] = queryVal
+				has = append(has, queryVal)
 			}
 		}
 		exp = Haskey{
 			Column: column,
-			Values: vals,
+			Values: has,
 		}
-	case LIKES:
+	case LIKES: /* query có dạng likes[name]=abc;abc:test */
 		keyValue := strings.Split(value, ":")
 		if len(keyValue) != 2 {
 			return exp
 		}
+		keyLikes := []string{}
 		keys := strings.Split(keyValue[0], ";")
 		if len(keys) == 0 {
 			return exp
 		}
-		for i, v := range keys {
+		for _, v := range keys {
 			queryVal, err := (url.QueryUnescape(v))
 			if err == nil {
-				keys[i] = queryVal
+				keyLikes = append(keyLikes, queryVal)
 			}
 		}
-		queryValue, err = (url.QueryUnescape(keyValue[1]))
+		queryValue, err := (url.QueryUnescape(keyValue[1]))
 		if err != nil {
 			return exp
 		}
 		exp = Likes{
 			Column: column,
-			Keys:   keys,
+			Keys:   keyLikes,
 			Value:  queryValue,
 		}
 	case EQUALS:
@@ -203,23 +236,24 @@ func expFromString(filterKey, column, value string) Exp {
 		if len(keyValue) != 2 {
 			return exp
 		}
+		keyEquals := []string{}
 		keys := strings.Split(keyValue[0], ";")
 		if len(keys) == 0 {
 			return exp
 		}
-		for i, v := range keys {
+		for _, v := range keys {
 			queryVal, err := (url.QueryUnescape(v))
 			if err == nil {
-				keys[i] = queryVal
+				keyEquals = append(keyEquals, queryVal)
 			}
 		}
-		queryValue, err = (url.QueryUnescape(keyValue[1]))
+		queryValue, err := (url.QueryUnescape(keyValue[1]))
 		if err != nil {
 			return exp
 		}
 		exp = Equals{
 			Column: column,
-			Keys:   keys,
+			Keys:   keyEquals,
 			Value:  queryValue,
 		}
 	}
@@ -227,7 +261,7 @@ func expFromString(filterKey, column, value string) Exp {
 }
 
 type Filter struct {
-	Exps      []Exp // mảng các
+	Exps      []Exp // mảng các compare
 	Relatives map[string]IFilter
 }
 
