@@ -16,10 +16,11 @@ import (
 type QueryKey string
 
 const (
-	BOOST     QueryKey = "boost"
-	QUERY     QueryKey = "query"
-	ANALYZER  QueryKey = "analyzer"
-	QUERYNAME QueryKey = "_name"
+	BOOST       QueryKey = "boost"
+	QUERY       QueryKey = "query"
+	QUERYSEARCH QueryKey = "query_search"
+	ANALYZER    QueryKey = "analyzer"
+	QUERYNAME   QueryKey = "_name"
 )
 
 type Boost float32
@@ -67,6 +68,15 @@ func (q *QuerySearch) Parse(s string) error {
 		switch v {
 		case '[':
 			switch QueryKey(s[indexStart:i]) {
+			case QUERYSEARCH:
+				query := NewQuerySearch()
+				peek, err := stack.Peek()
+				if err != nil {
+					return err
+				}
+				peek.AddParam(MATCH, query)
+				stack.Push(query)
+				indexStart = i + 1
 			/* fulltext */
 			case MATCH:
 				match := Match{NewQuerySearch()}
@@ -230,6 +240,44 @@ func (q *QuerySearch) Parse(s string) error {
 				peek.AddParam(SLICEINTERVALS, match)
 				stack.Push(match)
 				indexStart = i + 1
+			case INTERVALS:
+				query := Intervals{NewQuerySearch()}
+				peek, err := stack.Peek()
+				if err != nil {
+					return err
+				}
+				peek.AddParam(INTERVALS, query)
+				stack.Push(query)
+				indexStart = i + 1
+
+			case ALLOF:
+				query := AllOf{NewQuerySearch()}
+				peek, err := stack.Peek()
+				if err != nil {
+					return err
+				}
+				peek.AddParam(ALLOF, query)
+				stack.Push(query)
+				indexStart = i + 1
+			case INTERVALSFILTER:
+				query := IntervalsFilter{NewQuerySearch()}
+				peek, err := stack.Peek()
+				if err != nil {
+					return err
+				}
+				peek.AddParam(INTERVALSFILTER, query)
+				stack.Push(query)
+				indexStart = i + 1
+
+			case ANYOF:
+				query := AnyOf{NewQuerySearch()}
+				peek, err := stack.Peek()
+				if err != nil {
+					return err
+				}
+				peek.AddParam(ANYOF, query)
+				stack.Push(query)
+				indexStart = i + 1
 
 			/* compound */
 			case BOOL:
@@ -243,7 +291,7 @@ func (q *QuerySearch) Parse(s string) error {
 				indexStart = i + 1
 
 			case MUST:
-				must := Must{NewQuerySearch()}
+				must := NewMust()
 				peek, err := stack.Peek()
 				if err != nil {
 					return err
@@ -252,7 +300,7 @@ func (q *QuerySearch) Parse(s string) error {
 				stack.Push(must)
 				indexStart = i + 1
 			case MUSTNOT:
-				mustNot := MustNot{NewQuerySearch()}
+				mustNot := NewMustNot()
 				peek, err := stack.Peek()
 				if err != nil {
 					return err
@@ -261,7 +309,7 @@ func (q *QuerySearch) Parse(s string) error {
 				stack.Push(mustNot)
 				indexStart = i + 1
 			case FILTER:
-				filter := Filter{NewQuerySearch()}
+				filter := NewFilter()
 				peek, err := stack.Peek()
 				if err != nil {
 					return err
@@ -270,7 +318,7 @@ func (q *QuerySearch) Parse(s string) error {
 				stack.Push(filter)
 				indexStart = i + 1
 			case SHOULD:
-				should := Should{NewQuerySearch()}
+				should := NewShould()
 				peek, err := stack.Peek()
 				if err != nil {
 					return err
@@ -326,7 +374,7 @@ func (q *QuerySearch) Parse(s string) error {
 				stack.Push(query)
 				indexStart = i + 1
 			case QUERIES:
-				query := Queries{NewQuerySearch()}
+				query := NewQueries()
 				peek, err := stack.Peek()
 				if err != nil {
 					return err
@@ -385,35 +433,6 @@ func (q *QuerySearch) Parse(s string) error {
 				stack.Push(query)
 				indexStart = i + 1
 
-			case INTERVALS:
-				query := Intervals{NewQuerySearch()}
-				peek, err := stack.Peek()
-				if err != nil {
-					return err
-				}
-				peek.AddParam(INTERVALS, query)
-				stack.Push(query)
-				indexStart = i + 1
-
-			case ALLOF:
-				query := AllOf{NewQuerySearch()}
-				peek, err := stack.Peek()
-				if err != nil {
-					return err
-				}
-				peek.AddParam(ALLOF, query)
-				stack.Push(query)
-				indexStart = i + 1
-
-			case ANYOF:
-				query := AnyOf{NewQuerySearch()}
-				peek, err := stack.Peek()
-				if err != nil {
-					return err
-				}
-				peek.AddParam(ANYOF, query)
-				stack.Push(query)
-				indexStart = i + 1
 				// decay function
 			case EXP:
 				query := Exp{NewQuerySearch()}
@@ -502,6 +521,51 @@ func (q *QuerySearch) Parse(s string) error {
 					return err
 				}
 				peek.AddParam(INNERHITS, query)
+				stack.Push(query)
+				indexStart = i + 1
+			case COLLAPSE:
+				query := Collapse{NewQuerySearch()}
+				peek, err := stack.Peek()
+				if err != nil {
+					return err
+				}
+				peek.AddParam(COLLAPSE, query)
+				stack.Push(query)
+				indexStart = i + 1
+			case SLICEINNERHITS:
+				query := NewSliceInnerHits()
+				peek, err := stack.Peek()
+				if err != nil {
+					return err
+				}
+				peek.AddParam(SLICEINNERHITS, query)
+				stack.Push(query)
+				indexStart = i + 1
+			case DOCVALUEFIELDS:
+				query := NewDocvalueFields()
+				peek, err := stack.Peek()
+				if err != nil {
+					return err
+				}
+				peek.AddParam(DOCVALUEFIELDS, query)
+				stack.Push(query)
+				indexStart = i + 1
+			case FIELDANDFORMAT:
+				query := FieldAndFormat{NewQuerySearch()}
+				peek, err := stack.Peek()
+				if err != nil {
+					return err
+				}
+				peek.AddParam(FIELDANDFORMAT, query)
+				stack.Push(query)
+				indexStart = i + 1
+			case HIGHLIGHT:
+				query := FieldAndFormat{NewQuerySearch()}
+				peek, err := stack.Peek()
+				if err != nil {
+					return err
+				}
+				peek.AddParam(FIELDANDFORMAT, query)
 				stack.Push(query)
 				indexStart = i + 1
 			case HASCHILD:
@@ -1003,6 +1067,10 @@ func (q *QuerySearch) Parse(s string) error {
 				indexStart = i + 1
 
 			default:
+				err := stringToJoiningQuerier(stack, s[indexStart:i], i, &indexStart)
+				if err != nil {
+					return err
+				}
 				result := NewQuerySearch()
 				peek, err := stack.Peek()
 				if err != nil {
@@ -1107,6 +1175,14 @@ func stringToQuery(key string, value string) interface{} {
 		var v MinimumShouldMatch
 		v = value
 		return v
+	case FUZZINESS:
+		value, err := url.QueryUnescape(value)
+		if err != nil {
+			return nil
+		}
+		var v Fuzziness
+		v = value
+		return v
 	case DECAY:
 		value, err := url.QueryUnescape(value)
 		if err != nil {
@@ -1195,6 +1271,12 @@ func stringToQuery(key string, value string) interface{} {
 			return nil
 		}
 		return QueryName(value)
+	case REWRITE:
+		value, err := url.QueryUnescape(value)
+		if err != nil {
+			return nil
+		}
+		return Rewrite(value)
 	case SEED:
 		value, err := url.QueryUnescape(value)
 		if err != nil {
@@ -1381,12 +1463,6 @@ func stringToQuery(key string, value string) interface{} {
 			return nil
 		}
 		return Analyzer(value)
-	case FUZZINESS:
-		value, err := url.QueryUnescape(value)
-		if err != nil {
-			return nil
-		}
-		return Fuzziness(value)
 	case FUZZYREWRITE:
 		value, err := url.QueryUnescape(value)
 		if err != nil {
@@ -1688,6 +1764,16 @@ func stringToQuery(key string, value string) interface{} {
 			return nil
 		}
 		return MaxExpansions(v)
+	case MAXCONCURRENTGROUPSEARCHES:
+		value, err := url.QueryUnescape(value)
+		if err != nil {
+			return nil
+		}
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			return nil
+		}
+		return MaxConcurrentGroupSearches(v)
 	case END:
 		value, err := url.QueryUnescape(value)
 		if err != nil {
@@ -1878,6 +1964,7 @@ func stringToQuery(key string, value string) interface{} {
 			return nil
 		}
 		return MinTermFreq(v)
+
 	case BOOST:
 		value, err := url.QueryUnescape(value)
 		if err != nil {
@@ -1943,16 +2030,7 @@ func stringToQuery(key string, value string) interface{} {
 			return nil
 		}
 		return Escape(boolValue)
-	case IGNOREUNMAPPED:
-		value, err := url.QueryUnescape(value)
-		if err != nil {
-			return nil
-		}
-		boolValue, err := strconv.ParseBool(value)
-		if err != nil {
-			return nil
-		}
-		return IgnoreUnmapped(boolValue)
+
 	case FUZZYTRANSPOSITIONS:
 		value, err := url.QueryUnescape(value)
 		if err != nil {
@@ -2053,8 +2131,22 @@ func stringToQuery(key string, value string) interface{} {
 			return nil
 		}
 		return Ordered(boolValue)
+	case INCLUDEUNMAPPED:
+		value, err := url.QueryUnescape(value)
+		if err != nil {
+			return nil
+		}
+		boolValue, err := strconv.ParseBool(value)
+		if err != nil {
+			return nil
+		}
+		return IncludeUnmapped(boolValue)
 
 	default:
+		joining := stringToJoining(key, value)
+		if joining != nil {
+			return joining
+		}
 		if strings.Contains(value, ";") {
 			fields := []interface{}{}
 			vals := strings.Split(value, ";")

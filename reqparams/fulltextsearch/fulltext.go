@@ -23,7 +23,10 @@ const (
 	COMBINEDFIELDS                  QueryKey = "combined_fields"
 	FIELDS                          QueryKey = "fields"
 	MULTIMATCH                      QueryKey = "multi_match"
+	REWRITE                         QueryKey = "rewrite"
 	TYPE                            QueryKey = "type"
+
+	INTERVALSFILTER QueryKey = "intervals_filter"
 
 	AFTER          QueryKey = "after"
 	BEFORE         QueryKey = "before"
@@ -89,7 +92,7 @@ type AutoGenerateSynonymsPhraseQuery bool
 type FuzzyTranspositions bool
 type Lenient bool
 type CutoffFrequency float64
-type Fuzziness string
+type Fuzziness interface{}
 type FuzzyRewrite string
 type MaxExpansions int
 type Operator string
@@ -98,6 +101,7 @@ type ZeroTermsQuery string
 type Slop int
 type Fields []string
 type Type string
+type Rewrite string
 type Pattern string
 
 type AllowLeadingWildcard bool
@@ -117,6 +121,10 @@ type QuoteFieldSuffix string
 type TimeZone string
 type MaxGaps int
 type Ordered bool
+
+type IntervalsFilter struct {
+	Querier
+}
 
 type SliceIntervals struct {
 	Params []Querier

@@ -52,11 +52,6 @@ type Bool struct {
 	Querier
 }
 
-type Filter Bool
-type Must Bool
-type MustNot Bool
-type Should Bool
-
 type MinimumShouldMatch interface{}
 
 type Boosting struct {
@@ -77,7 +72,6 @@ type DisMax struct {
 	Querier
 }
 
-type Queries DisMax
 type TieBreaker float64
 
 type FunctionScore struct {
@@ -131,5 +125,105 @@ func (f *Functions) AddParam(_ QueryKey, v interface{}) {
 }
 
 func (f *Functions) GetParams() interface{} {
+	return f.Params
+}
+
+/* làm việc với filter[query_search[...],query_search[...]] */
+type Filter struct {
+	Params []Querier
+}
+
+func NewFilter() *Filter {
+	return &Filter{
+		Params: make([]Querier, 0),
+	}
+}
+
+func (f *Filter) AddParam(_ QueryKey, v interface{}) {
+	q := v.(Querier)
+	f.Params = append(f.Params, q)
+}
+
+func (f *Filter) GetParams() interface{} {
+	return f.Params
+}
+
+/* làm việc với must[query_search[...],query_search[...]] */
+type Must struct {
+	Params []Querier
+}
+
+func NewMust() *Must {
+	return &Must{
+		Params: make([]Querier, 0),
+	}
+}
+
+func (f *Must) AddParam(_ QueryKey, v interface{}) {
+	q := v.(Querier)
+	f.Params = append(f.Params, q)
+}
+
+func (f *Must) GetParams() interface{} {
+	return f.Params
+}
+
+/* làm việc với must_not[query_search[...],query_search[...]] */
+type MustNot struct {
+	Params []Querier
+}
+
+func NewMustNot() *MustNot {
+	return &MustNot{
+		Params: make([]Querier, 0),
+	}
+}
+
+func (f *MustNot) AddParam(_ QueryKey, v interface{}) {
+	q := v.(Querier)
+	f.Params = append(f.Params, q)
+}
+
+func (f *MustNot) GetParams() interface{} {
+	return f.Params
+}
+
+/* làm việc với should[query_search[...],query_search[...]] */
+type Should struct {
+	Params []Querier
+}
+
+func NewShould() *Should {
+	return &Should{
+		Params: make([]Querier, 0),
+	}
+}
+
+func (f *Should) AddParam(_ QueryKey, v interface{}) {
+	q := v.(Querier)
+	f.Params = append(f.Params, q)
+}
+
+func (f *Should) GetParams() interface{} {
+	return f.Params
+}
+
+/* làm việc với should[query_search[...],query_search[...]] */
+type Queries struct {
+	Params []Querier
+}
+
+func NewQueries() *Queries {
+	return &Queries{
+		Params: make([]Querier, 0),
+	}
+}
+
+func (f *Queries) AddParam(_ QueryKey, v interface{}) {
+	q := v.(Querier)
+	f.Params = append(f.Params, q)
+}
+
+func (f *Queries) GetParams() interface{} {
 	return f.Params
 }

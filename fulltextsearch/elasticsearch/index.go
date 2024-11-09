@@ -103,13 +103,40 @@ func ParseQueryToSearch(q fulltextsearch.Querier) *types.Query {
 			case fulltextsearch.FUNCTIONSCORE:
 				d := ParseFunctionScoreQuery(value.(fulltextsearch.Querier))
 				query.FunctionScore = d
+			/* fulltext */
 			case fulltextsearch.MATCH:
 				match := ParseMatchQuery(value.(fulltextsearch.Querier))
 				query.Match = match
 			case fulltextsearch.INTERVALS:
 				in := ParseIntervalsQuery(value.(fulltextsearch.Querier))
 				query.Intervals = in
+			case fulltextsearch.MATCHBOOLPREFIX:
+				in := ParseMatchBoolPrefixQuery(value.(fulltextsearch.Querier))
+				query.MatchBoolPrefix = in
+			case fulltextsearch.MATCHPHRASE:
+				in := ParseMatchPhraseQuery(value.(fulltextsearch.Querier))
+				query.MatchPhrase = in
+			case fulltextsearch.MATCHPHRASEPREFIX:
+				in := ParseMatchPhrasePrefixQuery(value.(fulltextsearch.Querier))
+				query.MatchPhrasePrefix = in
+			case fulltextsearch.COMBINEDFIELDS:
+				in := ParseCombinedFieldsQuery(value.(fulltextsearch.Querier))
+				query.CombinedFields = in
+			case fulltextsearch.MULTIMATCH:
+				in := ParseMultiMatchQuery(value.(fulltextsearch.Querier))
+				query.MultiMatch = in
+			case fulltextsearch.QUERYSTRING:
+				in := ParseQueryStringQuery(value.(fulltextsearch.Querier))
+				query.QueryString = in
+			case fulltextsearch.SIMPLEQUERYSTRING:
+				in := ParseSimpleQueryStringQuery(value.(fulltextsearch.Querier))
+				query.SimpleQueryString = in
+				/* joining */
+			case fulltextsearch.NESTED:
+				in := ParseNestedQuery(value.(fulltextsearch.Querier))
+				query.Nested = in
 			}
+
 		}
 	}
 	// switch q.(type) {
