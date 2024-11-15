@@ -6,7 +6,7 @@ type Params struct {
 	Field  []string `json:"fields" form:"fields" query:"fields"`
 	Sort   []string `json:"sort" form:"sort" query:"sort"`
 	Filter []string `json:"filter" form:"filter" query:"filter"` /* filter cho sql */
-	Query  []string `json:"query" form:"query" query:"query"`    /* fulltextsearch "elasticsearch" */
+	Query  string   `json:"query" form:"query" query:"query"`    /* fulltextsearch "elasticsearch" */
 	Page   int      `json:"page" form:"page" query:"page"`
 	Limit  int      `json:"limit" form:"limit" query:"limit"`
 }
@@ -38,7 +38,12 @@ func (s *Search) Parse(p Params) error {
 	}
 	filter := NewFilter()
 	for _, value := range p.Filter {
-		err = filter.Parse(value)
+		expr := NewExpr()
+		err = expr.Parse(value)
+		if err != nil {
+			return err
+		}
+		err = filter.ParseFromExpr(expr)
 		if err != nil {
 			return err
 		}
@@ -56,16 +61,9 @@ func (s *Search) Parse(p Params) error {
 	if len(sort.Orders) > 0 || len(sort.Relatives) > 0 {
 		s.Sort = sort
 	}
-	query := fulltextsearch.NewQuerySearch()
-	for _, value := range p.Query {
-		err = query.Parse(value)
-		if err != nil {
-			return err
-		}
-	}
-	if len(query.Params) > 0 {
-		s.Query = query
-	}
+	query := fulltextsearch.NewQuery()
+	query.Parse(p.Query)
+	s.Query = query
 	s.Page = p.Page
 	s.Limit = p.Limit
 	return nil

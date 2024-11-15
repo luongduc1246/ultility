@@ -2,13 +2,14 @@ package elasticsearch
 
 import (
 	"encoding/json"
-	"fmt"
+	"strconv"
 
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/combinedfieldsoperator"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/combinedfieldszeroterms"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/operator"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/scriptlanguage"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/simplequerystringflag"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/textquerytype"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/zerotermsquery"
 	"github.com/luongduc1246/ultility/reqparams/fulltextsearch"
@@ -16,43 +17,78 @@ import (
 
 /*
 Phân tích câu query intervals
-câu query có dạng intervals[fields[all_of[...]]]
+câu query có dạng intervals{fields{all_of{...}}}
 */
 func ParseIntervalsQuery(m fulltextsearch.Querier) map[string]types.IntervalsQuery {
 	intervals := make(map[string]types.IntervalsQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewIntervalsQuery()
-			options := value.(fulltextsearch.Querier)
+			options, ok := value.(fulltextsearch.Querier)
+			if !ok {
+				break
+			}
 			imapOptions := options.GetParams()
-			mapOptions := imapOptions.(map[fulltextsearch.QueryKey]interface{})
+			mapOptions, ok := imapOptions.(map[string]interface{})
+			if !ok {
+				break
+			}
 			for field, value := range mapOptions {
 				switch field {
-				case fulltextsearch.ALLOF:
-					allOf := value.(fulltextsearch.Querier)
+				case "all_of":
+					allOf, ok := value.(fulltextsearch.Querier)
+					if !ok {
+						break
+					}
 					query.AllOf = ParseAllOfQuery(allOf)
-				case fulltextsearch.ANYOF:
-					anyOf := value.(fulltextsearch.Querier)
+				case "any_of":
+					anyOf, ok := value.(fulltextsearch.Querier)
+					if !ok {
+						break
+					}
 					query.AnyOf = ParseAnyOfQuery(anyOf)
-				case fulltextsearch.BOOST:
-					v := float32(value.(fulltextsearch.Boost))
-					query.Boost = &v
-				case fulltextsearch.FUZZY:
-					fuzzy := value.(fulltextsearch.Querier)
+				case "boost":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseFloat(s, 32)
+					if err != nil {
+						break
+					}
+					vFloat32 := float32(v)
+					query.Boost = &vFloat32
+				case "fuzzy":
+					fuzzy, ok := value.(fulltextsearch.Querier)
+					if !ok {
+						break
+					}
 					query.Fuzzy = ParseIntervalsFuzzyQuery(fuzzy)
-				case fulltextsearch.MATCH:
-					match := value.(fulltextsearch.Querier)
+				case "match":
+					match, ok := value.(fulltextsearch.Querier)
+					if !ok {
+						break
+					}
 					query.Match = ParseIntervalsMatchQuery(match)
-				case fulltextsearch.PREFIX:
-					prefix := value.(fulltextsearch.Querier)
+				case "prefix":
+					prefix, ok := value.(fulltextsearch.Querier)
+					if !ok {
+						break
+					}
 					query.Prefix = ParseIntervalsPrefixQuery(prefix)
-				case fulltextsearch.WILDCARD:
-					wildcard := value.(fulltextsearch.Querier)
+				case "wildcard":
+					wildcard, ok := value.(fulltextsearch.Querier)
+					if !ok {
+						break
+					}
 					query.Wildcard = ParseIntervalsWildcardQuery(wildcard)
-				case fulltextsearch.QUERYNAME:
-					v := string(value.(fulltextsearch.QueryName))
+				case "_name":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.QueryName_ = &v
 				}
 			}
@@ -66,34 +102,59 @@ func ParseIntervalsQuery(m fulltextsearch.Querier) map[string]types.IntervalsQue
 
 /*
 Phân tích câu query all_of
-câu query có dạng intervals[fields[all_of[intervals_filter[...],slice_intervals[intervals[...]]]]]
-  - intervals_filter thay cho filter
-  - slice_intervals thay cho mảng intervals
+câu query có all_of{filter{...},intervals[{...},{...}]}
 */
 func ParseAllOfQuery(m fulltextsearch.Querier) *types.IntervalsAllOf {
 	allOf := types.NewIntervalsAllOf()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.FILTER:
-				filter := value.(fulltextsearch.Querier)
+			case "filter":
+				filter, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				allOf.Filter = ParseIntervalsFilter(filter)
-			case fulltextsearch.MAXGAPS:
-				v := int(value.(fulltextsearch.MaxGaps))
+			case "max_gaps":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				allOf.MaxGaps = &v
-			case fulltextsearch.SLICEINTERVALS:
-				field := value.(fulltextsearch.Querier)
-				options := field.GetParams().([]fulltextsearch.Querier)
+			case "intervals":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				options, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
 				sliceIntervals := []types.Intervals{}
 				for _, query := range options {
-					i := ParseIntervals(query)
+					v, ok := query.(fulltextsearch.Querier)
+					if !ok {
+						break
+					}
+					i := ParseIntervals(v)
 					sliceIntervals = append(sliceIntervals, *i)
 				}
 				allOf.Intervals = sliceIntervals
-			case fulltextsearch.ORDERED:
-				v := bool(value.(fulltextsearch.Ordered))
+			case "ordered":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				allOf.Ordered = &v
 			}
 		}
@@ -102,33 +163,52 @@ func ParseAllOfQuery(m fulltextsearch.Querier) *types.IntervalsAllOf {
 }
 
 /*
-Phân tích câu query intervals trong all_off
-câu query có dạng ...[all_of[slice_intervals[intervals[all_of[...],any_of[...],...]]]]]
+Phân tích câu query intervals trong all_of,after,...
+
+	...{all_of{...}}
 */
 func ParseIntervals(m fulltextsearch.Querier) *types.Intervals {
 	query := types.NewIntervals()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.ALLOF:
-				allOf := value.(fulltextsearch.Querier)
+			case "all_of":
+				allOf, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				query.AllOf = ParseAllOfQuery(allOf)
-			case fulltextsearch.ANYOF:
-				anyOf := value.(fulltextsearch.Querier)
+			case "any_of":
+				anyOf, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				query.AnyOf = ParseAnyOfQuery(anyOf)
-			case fulltextsearch.FUZZY:
-				fuzzy := value.(fulltextsearch.Querier)
+			case "fuzzy":
+				fuzzy, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				query.Fuzzy = ParseIntervalsFuzzyQuery(fuzzy)
-			case fulltextsearch.MATCH:
-				match := value.(fulltextsearch.Querier)
+			case "match":
+				match, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				query.Match = ParseIntervalsMatchQuery(match)
-			case fulltextsearch.PREFIX:
-				prefix := value.(fulltextsearch.Querier)
+			case "prefix":
+				prefix, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				query.Prefix = ParseIntervalsPrefixQuery(prefix)
-			case fulltextsearch.WILDCARD:
-				wildcard := value.(fulltextsearch.Querier)
+			case "wildcard":
+				wildcard, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				query.Wildcard = ParseIntervalsWildcardQuery(wildcard)
 			}
 		}
@@ -137,39 +217,70 @@ func ParseIntervals(m fulltextsearch.Querier) *types.Intervals {
 }
 
 /*
-Phân tích câu query intervals_filter nằm trong macth của intervals,all_of...
-câu query có dạng intervals_filter[after[...],script[id=3]]
+Phân tích câu filter nằm trong macth của intervals,all_of...
+
+	...{after{all_of{...},...}}
 */
 func ParseIntervalsFilter(m fulltextsearch.Querier) *types.IntervalsFilter {
 	filter := types.NewIntervalsFilter()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.AFTER:
-				field := value.(fulltextsearch.Querier)
+			case "after":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				filter.After = ParseIntervals(field)
-			case fulltextsearch.BEFORE:
-				field := value.(fulltextsearch.Querier)
+			case "before":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				filter.Before = ParseIntervals(field)
-			case fulltextsearch.CONTAINEDBY:
-				field := value.(fulltextsearch.Querier)
+			case "contained_by":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				filter.ContainedBy = ParseIntervals(field)
-			case fulltextsearch.CONTAINING:
-				field := value.(fulltextsearch.Querier)
+			case "containing":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				filter.Containing = ParseIntervals(field)
-			case fulltextsearch.NOTCONTAINEDBY:
-				field := value.(fulltextsearch.Querier)
+			case "not_contained_by":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				filter.NotContainedBy = ParseIntervals(field)
-			case fulltextsearch.NOTCONTAINING:
-				field := value.(fulltextsearch.Querier)
+			case "not_containing":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				filter.NotContaining = ParseIntervals(field)
-			case fulltextsearch.NOTOVERLAPPING:
-				field := value.(fulltextsearch.Querier)
+			case "not_overlapping":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				filter.NotOverlapping = ParseIntervals(field)
-			case fulltextsearch.SCRIPT:
-				field := value.(fulltextsearch.Querier)
+			case "overlapping":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				filter.Overlapping = ParseIntervals(field)
+			case "script":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				filter.Script = ParseScript(field)
 			}
 		}
@@ -179,46 +290,71 @@ func ParseIntervalsFilter(m fulltextsearch.Querier) *types.IntervalsFilter {
 
 /*
 Phân tích câu query script
-câu query có dạng script[id=3,lang=vn,...]
+câu query có dạng ...{id:3,lang:vn,...}
 */
 func ParseScript(m fulltextsearch.Querier) *types.Script {
 	query := types.NewScript()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.ID:
-				v := string(value.(fulltextsearch.Id))
+			case "id":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.Id = &v
-			case fulltextsearch.LANG:
-				v := string(value.(fulltextsearch.Lang))
+			case "lang":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				lang := scriptlanguage.ScriptLanguage{
 					Name: v,
 				}
 				query.Lang = &lang
-			case fulltextsearch.OPTIONS:
-				field := value.(fulltextsearch.Querier)
+			case "options":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				options := make(map[string]string)
-				pars := field.GetParams().(map[fulltextsearch.QueryKey]interface{})
+				pars, ok := field.GetParams().(map[string]interface{})
+				if !ok {
+					break
+				}
 				for k, v := range pars {
-					strKey := fmt.Sprintf("%v", k)
-					strValue := fmt.Sprintf("%v", v)
-					options[strKey] = strValue
+					s, ok := v.(string)
+					if !ok {
+						break
+					}
+					options[k] = s
 				}
 				query.Options = options
-			case fulltextsearch.PARAMS:
-				field := value.(fulltextsearch.Querier)
+			case "params":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				ps := make(map[string]json.RawMessage)
-				pars := field.GetParams().(map[fulltextsearch.QueryKey]interface{})
+				pars, ok := field.GetParams().(map[string]interface{})
+				if !ok {
+					break
+				}
 				for k, v := range pars {
-					strKey := fmt.Sprintf("%v", k)
-					strValue := fmt.Sprintf("%v", v)
-					ps[strKey] = json.RawMessage(strValue)
+					s, ok := v.(string)
+					if !ok {
+						break
+					}
+					ps[k] = json.RawMessage(s)
 				}
 				query.Params = ps
-			case fulltextsearch.SOURCE:
-				v := string(value.(fulltextsearch.Source))
+			case "source":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.Source = &v
 
 			}
@@ -229,27 +365,39 @@ func ParseScript(m fulltextsearch.Querier) *types.Script {
 
 /*
 Phân tích câu query any_of
-câu query có dạng intervals[fields[any_of[intervals_filter[...],slice_intervals[intervals[...]]]]]
-  - intervals_filter thay cho filter
-  - slice_intervals thay cho mảng intervals
+
+	...{filter{}}
 */
 func ParseAnyOfQuery(m fulltextsearch.Querier) *types.IntervalsAnyOf {
 	anyOf := types.NewIntervalsAnyOf()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.INTERVALSFILTER:
-				filter := value.(fulltextsearch.Querier)
+			case "filter":
+				filter, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				anyOf.Filter = ParseIntervalsFilter(filter)
 
-			case fulltextsearch.SLICEINTERVALS:
-				field := value.(fulltextsearch.Querier)
-				options := field.GetParams().([]fulltextsearch.Querier)
+			case "intervals":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				options, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
 				sliceIntervals := []types.Intervals{}
 				for _, query := range options {
-					i := ParseIntervals(query)
+					v, ok := query.(fulltextsearch.Querier)
+					if !ok {
+						break
+					}
+					i := ParseIntervals(v)
 					sliceIntervals = append(sliceIntervals, *i)
 				}
 				anyOf.Intervals = sliceIntervals
@@ -261,36 +409,58 @@ func ParseAnyOfQuery(m fulltextsearch.Querier) *types.IntervalsAnyOf {
 
 /*
 Phân tích câu query fuzzy
-câu query có dạng intervals[fields[fuzzy[term_string=test,analyzer=atest]]]]
-  - term_string thay cho term
+câu query có dạng ...{...}
 */
 func ParseIntervalsFuzzyQuery(m fulltextsearch.Querier) *types.IntervalsFuzzy {
 	fuzzy := types.NewIntervalsFuzzy()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.ANALYZER:
-				v := string(value.(fulltextsearch.Analyzer))
+			case "analyzer":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				fuzzy.Analyzer = &v
-			case fulltextsearch.FUZZINESS:
+			case "fuzziness":
 				v, ok := value.(types.Fuzziness)
 				if !ok {
 					return nil
 				}
 				fuzzy.Fuzziness = v
-			case fulltextsearch.PREFIXLENGTH:
-				v := int(value.(fulltextsearch.PrefixLength))
+			case "prefix_length":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				fuzzy.PrefixLength = &v
-			case fulltextsearch.TERMSTRING:
-				v := string(value.(fulltextsearch.TermString))
+			case "term":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				fuzzy.Term = v
-			case fulltextsearch.TRANSPOSITIONS:
-				v := bool(value.(fulltextsearch.Transpositions))
+			case "transpositions":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				fuzzy.Transpositions = &v
-			case fulltextsearch.USEFIELD:
-				v := string(value.(fulltextsearch.UseField))
+			case "use_field":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				fuzzy.UseField = &v
 			}
 		}
@@ -300,33 +470,59 @@ func ParseIntervalsFuzzyQuery(m fulltextsearch.Querier) *types.IntervalsFuzzy {
 
 /*
 Phân tích câu query match trong intervals
-câu query có dạng intervals[fields[match[analyzer=atest,intervals_filter[after[...],script[id=3]]]]]]
-  - intervals_filter thay the cho filter
+
+	...{...}
 */
 func ParseIntervalsMatchQuery(m fulltextsearch.Querier) *types.IntervalsMatch {
 	query := types.NewIntervalsMatch()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.ANALYZER:
-				v := string(value.(fulltextsearch.Analyzer))
-				query.Analyzer = &v
-			case fulltextsearch.INTERVALSFILTER:
-				filter := value.(fulltextsearch.Querier)
+			case "analyzer":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Analyzer = &s
+			case "filter":
+				filter, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				query.Filter = ParseIntervalsFilter(filter)
-			case fulltextsearch.MAXGAPS:
-				v := int(value.(fulltextsearch.MaxGaps))
+			case "max_gaps":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.MaxGaps = &v
-			case fulltextsearch.ORDERED:
-				v := bool(value.(fulltextsearch.Ordered))
+			case "ordered":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.Ordered = &v
-			case fulltextsearch.QUERY:
-				v := string(value.(fulltextsearch.Query))
+			case "query":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.Query = v
-			case fulltextsearch.USEFIELD:
-				v := string(value.(fulltextsearch.UseField))
+			case "use_field":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.UseField = &v
 			}
 		}
@@ -336,24 +532,33 @@ func ParseIntervalsMatchQuery(m fulltextsearch.Querier) *types.IntervalsMatch {
 
 /*
 Phân tích câu query prefix trong intervals
-query có dạng prefix[prefix_string=test]
-  - prefix_string thay thế cho prefix trong params
+
+	...{...}
 */
 func ParseIntervalsPrefixQuery(m fulltextsearch.Querier) *types.IntervalsPrefix {
 	query := types.NewIntervalsPrefix()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.ANALYZER:
-				v := string(value.(fulltextsearch.Analyzer))
+			case "analyzer":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.Analyzer = &v
-			case fulltextsearch.PREFIXSTRING:
-				v := string(value.(fulltextsearch.PrefixString))
+			case "prefix":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.Prefix = v
-			case fulltextsearch.USEFIELD:
-				v := string(value.(fulltextsearch.UseField))
+			case "use_field":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.UseField = &v
 			}
 		}
@@ -363,23 +568,33 @@ func ParseIntervalsPrefixQuery(m fulltextsearch.Querier) *types.IntervalsPrefix 
 
 /*
 Phân tích câu query wildcard trong intervals
-query có dạng wildcard[anylyzer=test]
+
+	...{...}
 */
 func ParseIntervalsWildcardQuery(m fulltextsearch.Querier) *types.IntervalsWildcard {
 	query := types.NewIntervalsWildcard()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.ANALYZER:
-				v := string(value.(fulltextsearch.Analyzer))
+			case "analyzer":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.Analyzer = &v
-			case fulltextsearch.PATTERN:
-				v := string(value.(fulltextsearch.Pattern))
+			case "pattern":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.Pattern = v
-			case fulltextsearch.USEFIELD:
-				v := string(value.(fulltextsearch.UseField))
+			case "use_field":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.UseField = &v
 			}
 		}
@@ -389,67 +604,145 @@ func ParseIntervalsWildcardQuery(m fulltextsearch.Querier) *types.IntervalsWildc
 
 /*
 Phân tích câu query match
-query có dạng match[anylyzer=true]
+query có dạng match{anylyzer:true,...}
 */
 func ParseMatchQuery(m fulltextsearch.Querier) map[string]types.MatchQuery {
 	matchQuery := make(map[string]types.MatchQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewMatchQuery()
-			options := value.(fulltextsearch.Querier)
+			options, ok := value.(fulltextsearch.Querier)
+			if !ok {
+				break
+			}
 			imapOptions := options.GetParams()
-			mapOptions := imapOptions.(map[fulltextsearch.QueryKey]interface{})
+			mapOptions, ok := imapOptions.(map[string]interface{})
+			if !ok {
+				break
+			}
 			for field, value := range mapOptions {
 				switch field {
-				case fulltextsearch.ANALYZER:
-					v := string(value.(fulltextsearch.Analyzer))
+				case "analyzer":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.Analyzer = &v
-				case fulltextsearch.AUTOGENERATESYNONYMSPHRASEQUERY:
-					v := bool(value.(fulltextsearch.AutoGenerateSynonymsPhraseQuery))
+				case "auto_generate_synonyms_phrase_query":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseBool(s)
+					if err != nil {
+						break
+					}
 					query.AutoGenerateSynonymsPhraseQuery = &v
-				case fulltextsearch.BOOST:
-					v := float32(value.(fulltextsearch.Boost))
-					query.Boost = &v
-				case fulltextsearch.CUTOFFFREQUENCY:
-					v := types.Float64(value.(fulltextsearch.CutoffFrequency))
-					query.CutoffFrequency = &v
-				case fulltextsearch.FUZZINESS:
-					v := types.Fuzziness(value.(fulltextsearch.Fuzziness))
+				case "boost":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseFloat(s, 32)
+					if err != nil {
+						break
+					}
+					vFloat32 := float32(v)
+					query.Boost = &vFloat32
+				case "cutoff_frequency":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseFloat(s, 64)
+					if err != nil {
+						break
+					}
+					vFloat64 := types.Float64(v)
+					query.CutoffFrequency = &vFloat64
+				case "fuzziness":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v := types.Fuzziness(s)
 					query.Fuzziness = &v
-				case fulltextsearch.FUZZYREWRITE:
-					v := string(value.(fulltextsearch.FuzzyRewrite))
+				case "fuzzy_rewrite":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.FuzzyRewrite = &v
-				case fulltextsearch.FUZZYTRANSPOSITIONS:
-					v := bool(value.(fulltextsearch.FuzzyTranspositions))
+				case "fuzzy_transpositions":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseBool(s)
+					if err != nil {
+						break
+					}
 					query.FuzzyTranspositions = &v
-				case fulltextsearch.LENIENT:
-					v := bool(value.(fulltextsearch.Lenient))
+				case "lenient":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseBool(s)
+					if err != nil {
+						break
+					}
 					query.Lenient = &v
-				case fulltextsearch.MAXEXPANSIONS:
-					v := int(value.(fulltextsearch.MaxExpansions))
+				case "max_expansions":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
 					query.MaxExpansions = &v
-				case fulltextsearch.MINIMUMSHOULDMATCH:
-					v := types.MinimumShouldMatch(value.(fulltextsearch.MinimumShouldMatch))
-					query.MinimumShouldMatch = &v
-				case fulltextsearch.OPERATOR:
+				case "minimum_should_match":
+					query.MinimumShouldMatch = value
+				case "operator":
 					op := operator.Operator{}
-					v := string(value.(fulltextsearch.Operator))
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					op.Name = v
 					query.Operator = &op
-				case fulltextsearch.PREFIXLENGTH:
-					v := int(value.(fulltextsearch.PrefixLength))
+				case "prefix_length":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
 					query.PrefixLength = &v
-				case fulltextsearch.QUERY:
-					v := string(value.(fulltextsearch.Query))
+				case "query":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.Query = v
-				case fulltextsearch.QUERYNAME:
-					v := string(value.(fulltextsearch.QueryName))
+				case "_name":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.QueryName_ = &v
-				case fulltextsearch.ZEROTERMSQUERY:
+				case "zero_terms_query":
 					zero := zerotermsquery.ZeroTermsQuery{}
-					v := string(value.(fulltextsearch.ZeroTermsQuery))
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					zero.Name = v
 					query.ZeroTermsQuery = &zero
 				}
@@ -464,40 +757,74 @@ func ParseMatchQuery(m fulltextsearch.Querier) map[string]types.MatchQuery {
 
 /*
 Phân tích câu query match_phrase
-query có dạng match_phrase[anylyzer=true]
+query có dạng match_phrase{anylyzer:true}
 */
 func ParseMatchPhraseQuery(m fulltextsearch.Querier) map[string]types.MatchPhraseQuery {
 	matchQuery := make(map[string]types.MatchPhraseQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewMatchPhraseQuery()
-			options := value.(fulltextsearch.Querier)
+			options, ok := value.(fulltextsearch.Querier)
+			if !ok {
+				break
+			}
 			imapOptions := options.GetParams()
-			mapOptions := imapOptions.(map[fulltextsearch.QueryKey]interface{})
+			mapOptions, ok := imapOptions.(map[string]interface{})
+			if !ok {
+				break
+			}
 			for field, value := range mapOptions {
 				switch field {
-				case fulltextsearch.ANALYZER:
-					v := string(value.(fulltextsearch.Analyzer))
+				case "analyzer":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.Analyzer = &v
-				case fulltextsearch.BOOST:
-					v := float32(value.(fulltextsearch.Boost))
-					query.Boost = &v
-				case fulltextsearch.QUERY:
-					v := string(value.(fulltextsearch.Query))
+				case "boost":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseFloat(s, 32)
+					if err != nil {
+						break
+					}
+					vFloat32 := float32(v)
+					query.Boost = &vFloat32
+				case "query":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
+
 					query.Query = v
-				case fulltextsearch.QUERYNAME:
-					v := string(value.(fulltextsearch.QueryName))
+				case "_name":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.QueryName_ = &v
-				case fulltextsearch.SLOP:
-					v := int(value.(fulltextsearch.Slop))
-					query.Slop = &v
-				case fulltextsearch.ZEROTERMSQUERY:
+				case "zero_terms_query":
 					zero := zerotermsquery.ZeroTermsQuery{}
-					v := string(value.(fulltextsearch.ZeroTermsQuery))
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					zero.Name = v
 					query.ZeroTermsQuery = &zero
+				case "slop":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
+					query.Slop = &v
 				}
 			}
 			matchQuery[string(key)] = *query
@@ -510,40 +837,83 @@ func ParseMatchPhraseQuery(m fulltextsearch.Querier) map[string]types.MatchPhras
 
 /*
 Phân tích câu query match_phrase_prefix
-query có dạng match_phrase_prefix[anylyzer=true]
+query có dạng match_phrase_prefix{anylyzer:true}
 */
 func ParseMatchPhrasePrefixQuery(m fulltextsearch.Querier) map[string]types.MatchPhrasePrefixQuery {
 	matchQuery := make(map[string]types.MatchPhrasePrefixQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewMatchPhrasePrefixQuery()
-			options := value.(fulltextsearch.Querier)
+			options, ok := value.(fulltextsearch.Querier)
+			if !ok {
+				break
+			}
 			imapOptions := options.GetParams()
-			mapOptions := imapOptions.(map[fulltextsearch.QueryKey]interface{})
+			mapOptions, ok := imapOptions.(map[string]interface{})
+			if !ok {
+				break
+			}
 			for field, value := range mapOptions {
 				switch field {
-				case fulltextsearch.ANALYZER:
-					v := string(value.(fulltextsearch.Analyzer))
+				case "analyzer":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.Analyzer = &v
-				case fulltextsearch.BOOST:
-					v := float32(value.(fulltextsearch.Boost))
-					query.Boost = &v
-				case fulltextsearch.QUERY:
-					v := string(value.(fulltextsearch.Query))
+				case "boost":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseFloat(s, 32)
+					if err != nil {
+						break
+					}
+					vFloat32 := float32(v)
+					query.Boost = &vFloat32
+				case "max_expansions":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
+					query.MaxExpansions = &v
+				case "query":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.Query = v
-				case fulltextsearch.QUERYNAME:
-					v := string(value.(fulltextsearch.QueryName))
+				case "_name":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.QueryName_ = &v
-				case fulltextsearch.SLOP:
-					v := int(value.(fulltextsearch.Slop))
-					query.Slop = &v
-				case fulltextsearch.ZEROTERMSQUERY:
+				case "zero_terms_query":
 					zero := zerotermsquery.ZeroTermsQuery{}
-					v := string(value.(fulltextsearch.ZeroTermsQuery))
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					zero.Name = v
 					query.ZeroTermsQuery = &zero
+				case "slop":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
+					query.Slop = &v
 				}
 			}
 			matchQuery[string(key)] = *query
@@ -556,55 +926,114 @@ func ParseMatchPhrasePrefixQuery(m fulltextsearch.Querier) map[string]types.Matc
 
 /*
 Phân tích câu query match_bool_prefix
-query có dạng match_bool_prefix[anylyzer=true]
+query có dạng match_bool_prefix{anylyzer:true}
 */
 func ParseMatchBoolPrefixQuery(m fulltextsearch.Querier) map[string]types.MatchBoolPrefixQuery {
 	matchQuery := make(map[string]types.MatchBoolPrefixQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewMatchBoolPrefixQuery()
-			options := value.(fulltextsearch.Querier)
+			options, ok := value.(fulltextsearch.Querier)
+			if !ok {
+				break
+			}
 			imapOptions := options.GetParams()
-			mapOptions := imapOptions.(map[fulltextsearch.QueryKey]interface{})
+			mapOptions, ok := imapOptions.(map[string]interface{})
+
+			if !ok {
+				break
+			}
 			for field, value := range mapOptions {
 				switch field {
-				case fulltextsearch.ANALYZER:
-					v := string(value.(fulltextsearch.Analyzer))
+				case "analyzer":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.Analyzer = &v
-				case fulltextsearch.BOOST:
-					v := float32(value.(fulltextsearch.Boost))
-					query.Boost = &v
-				case fulltextsearch.FUZZINESS:
-					v := types.Fuzziness(value.(fulltextsearch.Fuzziness))
+
+				case "boost":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseFloat(s, 32)
+					if err != nil {
+						break
+					}
+					vFloat32 := float32(v)
+					query.Boost = &vFloat32
+
+				case "fuzziness":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v := types.Fuzziness(s)
 					query.Fuzziness = &v
-				case fulltextsearch.FUZZYREWRITE:
-					v := string(value.(fulltextsearch.FuzzyRewrite))
+				case "fuzzy_rewrite":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.FuzzyRewrite = &v
-				case fulltextsearch.FUZZYTRANSPOSITIONS:
-					v := bool(value.(fulltextsearch.FuzzyTranspositions))
+				case "fuzzy_transpositions":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseBool(s)
+					if err != nil {
+						break
+					}
 					query.FuzzyTranspositions = &v
-				case fulltextsearch.MAXEXPANSIONS:
-					v := int(value.(fulltextsearch.MaxExpansions))
+
+				case "max_expansions":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
 					query.MaxExpansions = &v
-				case fulltextsearch.MINIMUMSHOULDMATCH:
-					v := types.MinimumShouldMatch(value.(fulltextsearch.MinimumShouldMatch))
+				case "minimum_should_match":
+					v := value.(types.MinimumShouldMatch)
 					query.MinimumShouldMatch = &v
-				case fulltextsearch.OPERATOR:
+				case "operator":
 					op := operator.Operator{}
-					v := string(value.(fulltextsearch.Operator))
-					op.Name = v
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					op.Name = s
 					query.Operator = &op
-				case fulltextsearch.PREFIXLENGTH:
-					v := int(value.(fulltextsearch.PrefixLength))
+				case "prefix_length":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
 					query.PrefixLength = &v
-				case fulltextsearch.QUERY:
-					v := string(value.(fulltextsearch.Query))
+				case "query":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.Query = v
-				case fulltextsearch.QUERYNAME:
-					v := string(value.(fulltextsearch.QueryName))
+				case "_name":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
 					query.QueryName_ = &v
+
 				}
 			}
 			matchQuery[string(key)] = *query
@@ -617,118 +1046,268 @@ func ParseMatchBoolPrefixQuery(m fulltextsearch.Querier) map[string]types.MatchB
 
 /*
 Phân tích câu query combined_fields
-câu query có dạng combined_fields[boost=3,fields=a;b;d]
+
+	combined_fields{boost:3,fields[a,b,d]}
 */
 func ParseCombinedFieldsQuery(m fulltextsearch.Querier) *types.CombinedFieldsQuery {
 	query := types.NewCombinedFieldsQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.AUTOGENERATESYNONYMSPHRASEQUERY:
-				v := bool(value.(fulltextsearch.AutoGenerateSynonymsPhraseQuery))
+
+			case "auto_generate_synonyms_phrase_query":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.AutoGenerateSynonymsPhraseQuery = &v
-			case fulltextsearch.BOOST:
-				v := float32(value.(fulltextsearch.Boost))
-				query.Boost = &v
-			case fulltextsearch.MINIMUMSHOULDMATCH:
-				v := types.MinimumShouldMatch(value.(fulltextsearch.MinimumShouldMatch))
-				query.MinimumShouldMatch = &v
-			case fulltextsearch.QUERY:
-				v := string(value.(fulltextsearch.Query))
-				query.Query = v
-			case fulltextsearch.OPERATOR:
+			case "boost":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
+			case "minimum_should_match":
+				query.MinimumShouldMatch = value
+			case "operator":
 				op := combinedfieldsoperator.CombinedFieldsOperator{}
-				v := string(value.(fulltextsearch.Operator))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				op.Name = v
 				query.Operator = &op
-			case fulltextsearch.FIELDS:
-				v := []string(value.(fulltextsearch.Fields))
-				query.Fields = v
-			case fulltextsearch.QUERYNAME:
-				v := string(value.(fulltextsearch.QueryName))
+			case "fields":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Fields = fields
+			case "query":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Query = v
+			case "_name":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.QueryName_ = &v
-			case fulltextsearch.ZEROTERMSQUERY:
+			case "zero_terms_query":
 				zero := combinedfieldszeroterms.CombinedFieldsZeroTerms{}
-				v := string(value.(fulltextsearch.ZeroTermsQuery))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				zero.Name = v
 				query.ZeroTermsQuery = &zero
 			}
+
 		}
 	}
+
 	return query
 }
 
 /*
 Phân tích câu query multi_match
-câu query có dạng multi_match[boost=3,fields=a;b;d]
+
+	multi_match{boost:3,fields=[a,b,d]}
 */
 func ParseMultiMatchQuery(m fulltextsearch.Querier) *types.MultiMatchQuery {
 	query := types.NewMultiMatchQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.ANALYZER:
-				v := string(value.(fulltextsearch.Analyzer))
+			case "analyzer":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.Analyzer = &v
-			case fulltextsearch.AUTOGENERATESYNONYMSPHRASEQUERY:
-				v := bool(value.(fulltextsearch.AutoGenerateSynonymsPhraseQuery))
+			case "auto_generate_synonyms_phrase_query":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.AutoGenerateSynonymsPhraseQuery = &v
-			case fulltextsearch.BOOST:
-				v := float32(value.(fulltextsearch.Boost))
-				query.Boost = &v
-			case fulltextsearch.CUTOFFFREQUENCY:
-				v := types.Float64(value.(fulltextsearch.CutoffFrequency))
-				query.CutoffFrequency = &v
-			case fulltextsearch.FUZZINESS:
-				v := types.Fuzziness(value.(fulltextsearch.Fuzziness))
-				query.Fuzziness = &v
-			case fulltextsearch.FUZZYREWRITE:
-				v := string(value.(fulltextsearch.FuzzyRewrite))
+			case "boost":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
+			case "cutoff_frequency":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					break
+				}
+				vFloat64 := types.Float64(v)
+				query.CutoffFrequency = &vFloat64
+			case "fields":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Fields = fields
+			case "fuzziness":
+				query.Fuzziness = value
+			case "fuzzy_rewrite":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.FuzzyRewrite = &v
-			case fulltextsearch.FUZZYTRANSPOSITIONS:
-				v := bool(value.(fulltextsearch.FuzzyTranspositions))
+			case "fuzzy_transpositions":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.FuzzyTranspositions = &v
-			case fulltextsearch.LENIENT:
-				v := bool(value.(fulltextsearch.Lenient))
+			case "lenient":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.Lenient = &v
-			case fulltextsearch.MAXEXPANSIONS:
-				v := int(value.(fulltextsearch.MaxExpansions))
+			case "max_expansions":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.MaxExpansions = &v
-			case fulltextsearch.MINIMUMSHOULDMATCH:
-				v := types.MinimumShouldMatch(value.(fulltextsearch.MinimumShouldMatch))
-				query.MinimumShouldMatch = &v
-			case fulltextsearch.OPERATOR:
+			case "minimum_should_match":
+				query.MinimumShouldMatch = value
+			case "operator":
 				op := operator.Operator{}
-				v := string(value.(fulltextsearch.Operator))
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := string(s)
 				op.Name = v
 				query.Operator = &op
-			case fulltextsearch.PREFIXLENGTH:
-				v := int(value.(fulltextsearch.PrefixLength))
+			case "prefix_length":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.PrefixLength = &v
-			case fulltextsearch.QUERY:
-				v := string(value.(fulltextsearch.Query))
+			case "query":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.Query = v
-			case fulltextsearch.QUERYNAME:
-				v := string(value.(fulltextsearch.QueryName))
+			case "_name":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.QueryName_ = &v
-			case fulltextsearch.ZEROTERMSQUERY:
+			case "slop":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
+				query.Slop = &v
+			case "tie_breaker":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					break
+				}
+				vFloat64 := types.Float64(v)
+				query.TieBreaker = &vFloat64
+			case "type":
+				t := textquerytype.TextQueryType{}
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				t.Name = v
+				query.Type = &t
+			case "zero_terms_query":
 				zero := zerotermsquery.ZeroTermsQuery{}
-				v := string(value.(fulltextsearch.ZeroTermsQuery))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				zero.Name = v
 				query.ZeroTermsQuery = &zero
-			case fulltextsearch.SLOP:
-				v := int(value.(fulltextsearch.Slop))
-				query.Slop = &v
-			case fulltextsearch.FIELDS:
-				v := []string(value.(fulltextsearch.Fields))
-				query.Fields = v
-			case fulltextsearch.TIEBREAKER:
-				v := types.Float64(value.(fulltextsearch.TieBreaker))
-				query.TieBreaker = &v
 			}
 		}
 	}
@@ -737,100 +1316,242 @@ func ParseMultiMatchQuery(m fulltextsearch.Querier) *types.MultiMatchQuery {
 
 /*
 Phân tích câu query query_string
-câu query có dạng query_string[boost=3,fields=a;b;d]
+câu query có dạng query_string{boost:3,fields[a,b,d]}
 */
 func ParseQueryStringQuery(m fulltextsearch.Querier) *types.QueryStringQuery {
 	query := types.NewQueryStringQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.ANALYZER:
-				v := string(value.(fulltextsearch.Analyzer))
-				query.Analyzer = &v
-			case fulltextsearch.AUTOGENERATESYNONYMSPHRASEQUERY:
-				v := bool(value.(fulltextsearch.AutoGenerateSynonymsPhraseQuery))
-				query.AutoGenerateSynonymsPhraseQuery = &v
-			case fulltextsearch.ALLOWLEADINGWILDCARD:
-				v := bool(value.(fulltextsearch.AllowLeadingWildcard))
+			case "allow_leading_wildcard":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.AllowLeadingWildcard = &v
-			case fulltextsearch.ANALYZEWILDCARD:
-				v := bool(value.(fulltextsearch.AnalyzeWildcard))
+			case "analyze_wildcard":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.AnalyzeWildcard = &v
-			case fulltextsearch.BOOST:
-				v := float32(value.(fulltextsearch.Boost))
-				query.Boost = &v
-			case fulltextsearch.DEFAULTFIELD:
-				v := string(value.(fulltextsearch.DefaultField))
+			case "analyzer":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Analyzer = &v
+			case "auto_generate_synonyms_phrase_query":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.AutoGenerateSynonymsPhraseQuery = &v
+			case "boost":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
+			case "default_field":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.DefaultField = &v
-			case fulltextsearch.DEFAULTOPERATOR:
+			case "default_operator":
 				op := operator.Operator{}
-				v := string(value.(fulltextsearch.Operator))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				op.Name = v
 				query.DefaultOperator = &op
-			case fulltextsearch.ESCAPE:
-				v := bool(value.(fulltextsearch.Escape))
-				query.Escape = &v
-			case fulltextsearch.ENABLEPOSITIONINCREMENTS:
-				v := bool(value.(fulltextsearch.EnablePositionIncrements))
+			case "enable_position_increments":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.EnablePositionIncrements = &v
-			case fulltextsearch.FUZZINESS:
-				v := types.Fuzziness(value.(fulltextsearch.Fuzziness))
-				query.Fuzziness = &v
-			case fulltextsearch.FUZZYREWRITE:
-				v := string(value.(fulltextsearch.FuzzyRewrite))
-				query.FuzzyRewrite = &v
-			case fulltextsearch.FUZZYTRANSPOSITIONS:
-				v := bool(value.(fulltextsearch.FuzzyTranspositions))
-				query.FuzzyTranspositions = &v
-			case fulltextsearch.LENIENT:
-				v := bool(value.(fulltextsearch.Lenient))
-				query.Lenient = &v
-			case fulltextsearch.FUZZYMAXEXPANSIONS:
-				v := int(value.(fulltextsearch.FuzzyMaxExpansions))
+			case "escape":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.Escape = &v
+			case "fields":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Fields = fields
+			case "fuzziness":
+				query.Fuzziness = value
+			case "fuzzy_max_expansions":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.FuzzyMaxExpansions = &v
-			case fulltextsearch.MINIMUMSHOULDMATCH:
-				v := types.MinimumShouldMatch(value.(fulltextsearch.MinimumShouldMatch))
-				query.MinimumShouldMatch = &v
-			case fulltextsearch.FUZZYPREFIXLENGTH:
-				v := int(value.(fulltextsearch.FuzzyPrefixLength))
+			case "fuzzy_prefix_length":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.FuzzyPrefixLength = &v
-			case fulltextsearch.MAXDETERMINIZEDSTATES:
-				v := int(value.(fulltextsearch.MaxDeterminizedStates))
+			case "fuzzy_rewrite":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.FuzzyRewrite = &v
+			case "fuzzy_transpositions":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.FuzzyTranspositions = &v
+			case "lenient":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.Lenient = &v
+			case "max_determinized_states":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.MaxDeterminizedStates = &v
-			case fulltextsearch.QUERY:
-				v := string(value.(fulltextsearch.Query))
+
+			case "minimum_should_match":
+				query.MinimumShouldMatch = value
+			case "phrase_slop":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					break
+				}
+				vFloat64 := types.Float64(v)
+				query.PhraseSlop = &vFloat64
+			case "query":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.Query = v
-			case fulltextsearch.QUOTEANALYZER:
-				v := string(value.(fulltextsearch.QuoteAnalyzer))
-				query.QuoteAnalyzer = &v
-			case fulltextsearch.QUOTEFIELDSUFFIX:
-				v := string(value.(fulltextsearch.QuoteFieldSuffix))
-				query.QuoteFieldSuffix = &v
-			case fulltextsearch.TIMEZONE:
-				v := string(value.(fulltextsearch.TimeZone))
-				query.TimeZone = &v
-			case fulltextsearch.REWRITE:
-				v := string(value.(fulltextsearch.Rewrite))
-				query.Rewrite = &v
-			case fulltextsearch.QUERYNAME:
-				v := string(value.(fulltextsearch.QueryName))
+			case "_name":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.QueryName_ = &v
-			case fulltextsearch.PHRASESLOP:
-				v := types.Float64(value.(fulltextsearch.PhraseSlop))
-				query.PhraseSlop = &v
-			case fulltextsearch.FIELDS:
-				v := []string(value.(fulltextsearch.Fields))
-				query.Fields = v
-			case fulltextsearch.TIEBREAKER:
-				v := types.Float64(value.(fulltextsearch.TieBreaker))
-				query.TieBreaker = &v
-			case fulltextsearch.TYPE:
-				zero := textquerytype.TextQueryType{}
-				v := string(value.(fulltextsearch.Type))
-				zero.Name = v
-				query.Type = &zero
+			case "quote_analyzer":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.QuoteAnalyzer = &v
+			case "quote_field_suffix":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.QuoteFieldSuffix = &v
+			case "rewrite":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Rewrite = &v
+
+			case "tie_breaker":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					break
+				}
+				vFloat64 := types.Float64(v)
+				query.TieBreaker = &vFloat64
+			case "time_zone":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.TimeZone = &v
+			case "type":
+				t := textquerytype.TextQueryType{}
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				t.Name = v
+				query.Type = &t
+
 			}
 		}
 	}
@@ -839,67 +1560,153 @@ func ParseQueryStringQuery(m fulltextsearch.Querier) *types.QueryStringQuery {
 
 /*
 Phân tích câu query simple_query_string
-câu query có dạng simple_query_string[boost=3,...]
+
+	simple_query_string{boost=3,...}
 */
 func ParseSimpleQueryStringQuery(m fulltextsearch.Querier) *types.SimpleQueryStringQuery {
 	query := types.NewSimpleQueryStringQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.ANALYZER:
-				v := string(value.(fulltextsearch.Analyzer))
-				query.Analyzer = &v
-			case fulltextsearch.AUTOGENERATESYNONYMSPHRASEQUERY:
-				v := bool(value.(fulltextsearch.AutoGenerateSynonymsPhraseQuery))
-				query.AutoGenerateSynonymsPhraseQuery = &v
-
-			case fulltextsearch.ANALYZEWILDCARD:
-				v := bool(value.(fulltextsearch.AnalyzeWildcard))
+			case "analyze_wildcard":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.AnalyzeWildcard = &v
-			case fulltextsearch.BOOST:
-				v := float32(value.(fulltextsearch.Boost))
-				query.Boost = &v
-
-			case fulltextsearch.DEFAULTOPERATOR:
+			case "analyzer":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Analyzer = &v
+			case "auto_generate_synonyms_phrase_query":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.AutoGenerateSynonymsPhraseQuery = &v
+			case "boost":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
+			case "default_operator":
 				op := operator.Operator{}
-				v := string(value.(fulltextsearch.Operator))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				op.Name = v
 				query.DefaultOperator = &op
 
-			case fulltextsearch.FUZZYTRANSPOSITIONS:
-				v := bool(value.(fulltextsearch.FuzzyTranspositions))
-				query.FuzzyTranspositions = &v
-			case fulltextsearch.LENIENT:
-				v := bool(value.(fulltextsearch.Lenient))
-				query.Lenient = &v
-			case fulltextsearch.FUZZYMAXEXPANSIONS:
-				v := int(value.(fulltextsearch.FuzzyMaxExpansions))
+			case "fields":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+
+				}
+				query.Fields = fields
+
+			case "fuzzy_max_expansions":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.FuzzyMaxExpansions = &v
-			case fulltextsearch.MINIMUMSHOULDMATCH:
-				v := types.MinimumShouldMatch(value.(fulltextsearch.MinimumShouldMatch))
-				query.MinimumShouldMatch = &v
-			case fulltextsearch.FUZZYPREFIXLENGTH:
-				v := int(value.(fulltextsearch.FuzzyPrefixLength))
+			case "fuzzy_prefix_length":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.FuzzyPrefixLength = &v
 
-			case fulltextsearch.QUERY:
-				v := string(value.(fulltextsearch.Query))
+			case "fuzzy_transpositions":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.FuzzyTranspositions = &v
+			case "lenient":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.Lenient = &v
+			case "minimum_should_match":
+
+				query.MinimumShouldMatch = value
+
+			case "query":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.Query = v
-
-			case fulltextsearch.QUOTEFIELDSUFFIX:
-				v := string(value.(fulltextsearch.QuoteFieldSuffix))
-				query.QuoteFieldSuffix = &v
-
-			case fulltextsearch.QUERYNAME:
-				v := string(value.(fulltextsearch.QueryName))
+			case "_name":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.QueryName_ = &v
 
-			case fulltextsearch.FIELDS:
-				v := []string(value.(fulltextsearch.Fields))
-				query.Fields = v
-
+			case "quote_field_suffix":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.QuoteFieldSuffix = &v
+			case "flags":
+				flags := simplequerystringflag.SimpleQueryStringFlag{}
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				flags.Name = v
+				query.Flags = flags
 			}
 		}
 	}

@@ -48,7 +48,7 @@ func queryToField(s string, f *Field) (err error) {
 	var indexStart int
 	for i, v := range s {
 		switch v {
-		case '[':
+		case '{':
 			model := cases.Title(language.Und, cases.NoLower).String(s[indexStart:i])
 			peek, err := stack.Peek()
 			if err != nil {
@@ -62,7 +62,7 @@ func queryToField(s string, f *Field) (err error) {
 				stack.Push(field)
 			}
 			indexStart = i + 1
-		case ']':
+		case '}':
 			if s[i-1] != ']' {
 				column := s[indexStart:i]
 				indexStart = i + 1

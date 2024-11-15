@@ -8,7 +8,7 @@ func ConvertToSliceInterface[T any](t []T) []interface{} {
 	return s
 }
 func ConvertSliceInterfaceToSliceType[T any](elm []interface{}) []T {
-	s := make([]T, len(elm))
+	s := make([]T, 0)
 	for _, v := range elm {
 		e, ok := v.(T)
 		if ok {

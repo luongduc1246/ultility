@@ -39,3 +39,12 @@ type ErrorSort struct {
 func (e ErrorSort) Error() string {
 	return fmt.Sprintf("query incorrect format at '%v'", e.At)
 }
+
+type ErrorFilter struct {
+	Index int
+	At    string
+}
+
+func (e ErrorFilter) Error() string {
+	return fmt.Sprintf("filter incorrect format {index:'%v',value:'%v'}", e.Index, e.At)
+}

@@ -69,7 +69,7 @@ func queryToSortMap(s string, sort *Sort) (err error) {
 	var indexStart, indexBracketOpen int
 	for i, v := range s {
 		switch v {
-		case '[':
+		case '{':
 			indexBracketOpen = i
 			switch SortKey(s[indexStart:i]) {
 			case ASC, DESC:
@@ -89,7 +89,7 @@ func queryToSortMap(s string, sort *Sort) (err error) {
 				}
 				indexStart = i + 1
 			}
-		case ']':
+		case '}':
 			if s[i-1] != ']' {
 				if indexStart < indexBracketOpen {
 					by := s[indexStart:indexBracketOpen]

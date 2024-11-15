@@ -2,11 +2,15 @@ package elasticsearch
 
 import (
 	"encoding/json"
-	"fmt"
+	"strconv"
 
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/boundaryscanner"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/childscoremode"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/distanceunit"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/fieldsortnumerictype"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/fieldtype"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/geodistancetype"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/highlighterencoder"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/highlighterfragmenter"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/highlighterorder"
@@ -17,45 +21,77 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/kuromojitokenizationmode"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/language"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/noridecompoundmode"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/scriptsorttype"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/snowballlanguage"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/sortmode"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/sortorder"
 	"github.com/luongduc1246/ultility/reqparams/fulltextsearch"
 )
 
 /*
 Phân tích câu query nested
-câu query có dạng nested[boost=3,...]
-  - query_search thay thế cho query
+câu query có dạng nested{boost=3,...}
 */
 func ParseNestedQuery(m fulltextsearch.Querier) *types.NestedQuery {
 	query := types.NewNestedQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.BOOST:
-				v := float32(value.(fulltextsearch.Boost))
-				query.Boost = &v
-			case fulltextsearch.IGNOREUNMAPPED:
-				v := bool(value.(fulltextsearch.IgnoreUnmapped))
+			case "boost":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
+			case "ignore_unmapped":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.IgnoreUnmapped = &v
-			case fulltextsearch.QUERYSEARCH:
-				field := value.(fulltextsearch.Querier)
-				i := ParseQueryToSearch(field)
-				query.Query = i
-			case fulltextsearch.INNERHITS:
+			case "inner_hits":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseInnerHits(field)
 				query.InnerHits = i
-			case fulltextsearch.QUERYNAME:
-				v := string(value.(fulltextsearch.QueryName))
+			case "query":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				i := ParseQueryToSearch(field)
+				query.Query = i
+			case "path":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Path = v
+			case "_name":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.QueryName_ = &v
-			case fulltextsearch.SCOREMODE:
+			case "score_mode":
 				scm := childscoremode.ChildScoreMode{}
-				v := string(value.(fulltextsearch.ScoreMode))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				scm.Name = v
 				query.ScoreMode = &scm
 			}
@@ -66,58 +102,164 @@ func ParseNestedQuery(m fulltextsearch.Querier) *types.NestedQuery {
 
 /*
 Phân tích câu query inner_hits
-query có dạng inner_hits[...]
+
+	inner_hits{docvalue_fields[{...},{...}],script_fields{fields{...},message{...}}}
 */
 func ParseInnerHits(m fulltextsearch.Querier) *types.InnerHits {
 	query := types.NewInnerHits()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.COLLAPSE:
+			case "collapse":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseCollapse(field)
 				query.Collapse = i
-			case fulltextsearch.DOCVALUEFIELDS:
+			case "docvalue_fields":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				query.DocvalueFields = ParseDocValueFields(field)
-			case fulltextsearch.NAME:
-				v := string(value.(fulltextsearch.Name))
+			case "name":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.Name = &v
-			case fulltextsearch.EXPLAIN:
-				v := bool(value.(fulltextsearch.Explain))
+			case "explain":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.Explain = &v
-			case fulltextsearch.FIELDS:
-				v := []string(value.(fulltextsearch.Fields))
-				query.Fields = v
-			case fulltextsearch.FROM:
-				v := int(value.(fulltextsearch.From))
+			case "fields":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+
+				}
+				query.Fields = fields
+			case "from":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.From = &v
-			case fulltextsearch.HIGHLIGHT:
+			case "highlight":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				query.Highlight = ParseHighLight(field)
-			case fulltextsearch.IGNOREUNMAPPED:
-				v := bool(value.(fulltextsearch.IgnoreUnmapped))
+			case "ignore_unmapped":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.IgnoreUnmapped = &v
-			case fulltextsearch.SCRIPTFIELDS:
+			case "script_fields":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				query.ScriptFields = ParseScriptFields(field)
-			case fulltextsearch.SEQNOPRIMARYTERM:
-				v := bool(value.(fulltextsearch.SeqNoPrimaryTerm))
+			case "seq_no_primary_term":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.SeqNoPrimaryTerm = &v
+			case "size":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
+				query.Size = &v
+			case "sort":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.Sort = ParseSliceSort(field)
+			case "_source":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.Source_ = ParseSource(field)
+			case "stored_fields":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.StoredFields = fields
+			case "track_scores":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.TrackScores = &v
+			case "version":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.Version = &v
 			}
 		}
 	}
@@ -125,30 +267,548 @@ func ParseInnerHits(m fulltextsearch.Querier) *types.InnerHits {
 }
 
 /*
-Phân tích câu query script_fields
-query có dạng script_fields[fields[...]]
+Phân tích _source cua inner_hits
+
+	_source[false,true] hoặc _source[{...},{...}]
+*/
+func ParseSource(v interface{}) types.SourceConfig {
+	switch t := v.(type) {
+	case *fulltextsearch.Query:
+		query := types.SourceFilter{}
+		m, ok := t.GetParams().(map[string]interface{})
+		if !ok {
+			return nil
+		}
+		for key, value := range m {
+			switch key {
+			case "excludes":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Excludes = fields
+			case "includes":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Includes = fields
+			}
+		}
+		return query
+	case string:
+		return t
+	}
+	return nil
+}
+
+/*
+Phân tích sort cua inner_hits
+
+	sort[false,true] hoặc sort[{...},{...}]
+*/
+func ParseSliceSort(m fulltextsearch.Querier) []types.SortCombinations {
+	sliceQuery := []types.SortCombinations{}
+	options, ok := m.GetParams().([]interface{})
+	if !ok {
+		return nil
+	}
+	for _, q := range options {
+		switch q.(type) {
+		case *fulltextsearch.Query:
+			v, ok := q.(fulltextsearch.Querier)
+			if !ok {
+				break
+			}
+			sort := ParseSortCombinations(v)
+			sliceQuery = append(sliceQuery, sort)
+		case string:
+			sliceQuery = append(sliceQuery, q)
+		}
+	}
+	return sliceQuery
+}
+
+/*
+		Phân tích sortOptions của sort
+	 	 sort[{...},{...}]
+*/
+func ParseSortCombinations(m fulltextsearch.Querier) *types.SortOptions {
+	query := types.NewSortOptions()
+	params := m.GetParams()
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			switch key {
+			case "_doc":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.Doc_ = ParseScoreSort(field)
+			case "_geo_distance":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.GeoDistance_ = ParseGeoDistance(field)
+			case "_score":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.Score_ = ParseScoreSort(field)
+			case "_script":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.Script_ = ParseScriptSort(field)
+			case "options":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.SortOptions = ParseOptionsSort(field)
+			}
+		}
+	}
+	return query
+}
+
+/*
+		Phân tích options của sort
+	 	 sort[{options{fields{...}}}]
+*/
+
+func ParseOptionsSort(m fulltextsearch.Querier) map[string]types.FieldSort {
+	scriptFields := make(map[string]types.FieldSort)
+	params := m.GetParams()
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			query := types.NewFieldSort()
+			options, ok := value.(fulltextsearch.Querier)
+			if !ok {
+				break
+			}
+			imapOptions := options.GetParams()
+			mapOptions, ok := imapOptions.(map[string]interface{})
+			if !ok {
+				break
+			}
+			for field, value := range mapOptions {
+				switch field {
+				case "format":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
+					query.Format = &v
+				case "missing":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
+					query.Missing = &v
+				case "mode":
+					model := sortmode.SortMode{}
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
+					model.Name = v
+					query.Mode = &model
+				case "nested":
+					field, ok := value.(fulltextsearch.Querier)
+					if !ok {
+						break
+					}
+					query.Nested = ParseNestedSort(field)
+				case "numeric_type":
+					model := fieldsortnumerictype.FieldSortNumericType{}
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
+					model.Name = v
+					query.NumericType = &model
+				case "order":
+					order := sortorder.SortOrder{}
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
+					order.Name = v
+					query.Order = &order
+				case "unmapped_type":
+					order := fieldtype.FieldType{}
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
+					order.Name = v
+					query.UnmappedType = &order
+				}
+			}
+			scriptFields[key] = *query
+		}
+	default:
+		return nil
+	}
+	return scriptFields
+}
+
+/*
+		Phân tích _script của sort
+	 	 sort[{_script{...}}]
+*/
+func ParseScriptSort(m fulltextsearch.Querier) *types.ScriptSort {
+	query := types.NewScriptSort()
+	params := m.GetParams()
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			switch key {
+			case "mode":
+				model := sortmode.SortMode{}
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				model.Name = v
+				query.Mode = &model
+			case "nested":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.Nested = ParseNestedSort(field)
+			case "order":
+				order := sortorder.SortOrder{}
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				order.Name = v
+				query.Order = &order
+			case "script":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.Script = *ParseScript(field)
+			case "type":
+				model := scriptsorttype.ScriptSortType{}
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				model.Name = v
+				query.Type = &model
+			}
+		}
+	}
+	return query
+}
+
+/*
+		Phân tích ScoreSort của sort
+	 	 sort[{_doc},{_score}]
+*/
+func ParseScoreSort(m fulltextsearch.Querier) *types.ScoreSort {
+	query := types.NewScoreSort()
+	params := m.GetParams()
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			switch key {
+			case "order":
+				order := sortorder.SortOrder{}
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				order.Name = v
+				query.Order = &order
+			}
+		}
+	}
+	return query
+}
+
+/*
+		Phân tích GeoDistanceSort của sort
+	 	 sort[{_geo_distance}]
+*/
+func ParseGeoDistance(m fulltextsearch.Querier) *types.GeoDistanceSort {
+	query := types.NewGeoDistanceSort()
+	params := m.GetParams()
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			switch key {
+			case "distance_type":
+				model := geodistancetype.GeoDistanceType{}
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				model.Name = v
+				query.DistanceType = &model
+			case "geo_distance_sort":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.GeoDistanceSort = ParseGeoDistanceSort(field)
+			case "ignore_unmapped":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.IgnoreUnmapped = &v
+			case "mode":
+				model := sortmode.SortMode{}
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				model.Name = v
+				query.Mode = &model
+			case "nested":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.Nested = ParseNestedSort(field)
+			case "order":
+				order := sortorder.SortOrder{}
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				order.Name = v
+				query.Order = &order
+			case "unit":
+				model := distanceunit.DistanceUnit{}
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				model.Name = v
+				query.Unit = &model
+			}
+		}
+	}
+	return query
+}
+
+/*
+phân tích câu query nested cua _geo_distance
+
+	...{nested{...}}
+*/
+func ParseNestedSort(m fulltextsearch.Querier) *types.NestedSortValue {
+	query := types.NewNestedSortValue()
+	params := m.GetParams()
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			switch key {
+			case "filter":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				i := ParseQueryToSearch(field)
+				query.Filter = i
+			case "max_children":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
+				query.MaxChildren = &v
+			case "nested":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.Nested = ParseNestedSort(field)
+			case "path":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Path = v
+			}
+		}
+	}
+	return query
+}
+
+/*
+Phân tích câu query geo_distance_sort
+
+	geo_distance_sort{keys[...],fields[...]}
+*/
+func ParseGeoDistanceSort(m fulltextsearch.Querier) map[string][]types.GeoLocation {
+	mapSliceGeo := make(map[string][]types.GeoLocation)
+	params := m.GetParams()
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			field, ok := value.(fulltextsearch.Querier)
+			if !ok {
+				return nil
+			}
+			fields := make([]types.GeoLocation, 0)
+			pars, ok := field.GetParams().([]interface{})
+			if !ok {
+				return nil
+			}
+			for _, v := range pars {
+				geoLocation := ParseGeoLocale(v)
+				if geoLocation != nil {
+					fields = append(fields, geoLocation)
+				}
+			}
+			mapSliceGeo[key] = fields
+		}
+	}
+	return mapSliceGeo
+}
+
+/*
+Phân tích câu query GeoLocation geo_distance_sort
+
+	geo_distance_sort{keys[string,string]} hoặc ...{keys[{latlon},{geohash}]} hoặc ...{keys[[12,65,45],[45,54,54]]}
+*/
+func ParseGeoLocale(v interface{}) types.GeoLocation {
+	switch t := v.(type) {
+	case *fulltextsearch.Query:
+		m, ok := t.GetParams().(map[string]interface{})
+		if !ok {
+			return nil
+		}
+		if v, ok := m["geohash"]; ok {
+			return types.GeoHashLocation{
+				Geohash: v.(string),
+			}
+		}
+		lat, latExists := m["lat"]
+		lon, lonExists := m["lon"]
+		if latExists && lonExists {
+			lat64, err := strconv.ParseFloat(lat.(string), 64)
+			if err != nil {
+				return nil
+			}
+			lon64, err := strconv.ParseFloat(lon.(string), 64)
+			if err != nil {
+				return nil
+			}
+			return types.LatLonGeoLocation{
+				Lat: types.Float64(lat64),
+				Lon: types.Float64(lon64),
+			}
+		}
+		return nil
+	case *fulltextsearch.Slice:
+		params, ok := t.GetParams().([]interface{})
+		if !ok {
+			break
+		}
+		sliceFloat64 := []types.Float64{}
+		for _, value := range params {
+			s, ok := value.(string)
+			if !ok {
+				break
+			}
+			v, err := strconv.ParseFloat(s, 64)
+			if err != nil {
+				return nil
+			}
+			sliceFloat64 = append(sliceFloat64, types.Float64(v))
+		}
+		return sliceFloat64
+	case string:
+		return t
+	}
+	return nil
+}
+
+/*
+Phân tích câu query script_field
+
+	...{ignore_failure:false,script{id:3,...}}
 */
 func ParseScriptFields(m fulltextsearch.Querier) map[string]types.ScriptField {
 	scriptFields := make(map[string]types.ScriptField)
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewScriptField()
-			options := value.(fulltextsearch.Querier)
+			options, ok := value.(fulltextsearch.Querier)
+			if !ok {
+				break
+			}
 			imapOptions := options.GetParams()
-			mapOptions := imapOptions.(map[fulltextsearch.QueryKey]interface{})
+			mapOptions, ok := imapOptions.(map[string]interface{})
+			if !ok {
+				break
+			}
 			for field, value := range mapOptions {
 				switch field {
-				case fulltextsearch.IGNOREFAILURE:
-					v := bool(value.(fulltextsearch.IgnoreFailure))
+				case "ignore_failure":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseBool(s)
+					if err != nil {
+						break
+					}
 					query.IgnoreFailure = &v
-				case fulltextsearch.SCRIPT:
-					field := value.(fulltextsearch.Querier)
+				case "script":
+					field, ok := value.(fulltextsearch.Querier)
+					if !ok {
+						break
+					}
 					query.Script = *ParseScript(field)
 				}
 			}
-			scriptFields[string(key)] = *query
+			scriptFields[key] = *query
 		}
 	default:
 		return nil
@@ -158,43 +818,58 @@ func ParseScriptFields(m fulltextsearch.Querier) map[string]types.ScriptField {
 
 /*
 phân tích câu query collapse
-query có dạng collapse[collapse[...],slice_inner_hits[inner_hits[...]]]
-  - slice_inner_hits thay thế cho inner_hits
+
+	...{collapse[...],slice_inner_hits[inner_hits[...]]]
 */
 func ParseCollapse(m fulltextsearch.Querier) *types.FieldCollapse {
 	query := types.NewFieldCollapse()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.COLLAPSE:
+			case "collapse":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseCollapse(field)
 				query.Collapse = i
-			case fulltextsearch.SLICEINNERHITS:
+			case "inner_hits":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
-				options, ok := field.GetParams().([]fulltextsearch.Querier)
+				options, ok := field.GetParams().([]interface{})
 				if !ok {
 					break
 				}
 				sliceQuery := []types.InnerHits{}
 				for _, q := range options {
-					i := ParseInnerHits(q)
+					v, ok := q.(fulltextsearch.Querier)
+					if !ok {
+						break
+					}
+					i := ParseInnerHits(v)
 					sliceQuery = append(sliceQuery, *i)
 				}
 				query.InnerHits = sliceQuery
-			case fulltextsearch.FIELD:
-				v := string(value.(fulltextsearch.Field))
+			case "field":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Field = v
-			case fulltextsearch.MAXCONCURRENTGROUPSEARCHES:
-				v := int(value.(fulltextsearch.MaxConcurrentGroupSearches))
+			case "max_concurrent_group_searches":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.MaxConcurrentGroupSearches = &v
 			}
 		}
@@ -204,17 +879,21 @@ func ParseCollapse(m fulltextsearch.Querier) *types.FieldCollapse {
 
 /*
 phân tích câu query doc_value_fields
-query có dạng doc_value_fields[field_and_format[field=abc,format=abc],field_and_format[...]]
-*/
 
+	doc_value_fields[{field:abc,format:abc},{...}]
+*/
 func ParseDocValueFields(m fulltextsearch.Querier) []types.FieldAndFormat {
 	sliceQuery := []types.FieldAndFormat{}
-	options, ok := m.GetParams().([]fulltextsearch.Querier)
+	options, ok := m.GetParams().([]interface{})
 	if !ok {
 		return nil
 	}
 	for _, q := range options {
-		i := ParseFieldAndFormat(q)
+		v, ok := q.(fulltextsearch.Querier)
+		if !ok {
+			return nil
+		}
+		i := ParseFieldAndFormat(v)
 		sliceQuery = append(sliceQuery, *i)
 	}
 	return sliceQuery
@@ -222,23 +901,39 @@ func ParseDocValueFields(m fulltextsearch.Querier) []types.FieldAndFormat {
 
 /*
 phân tích câu query field_and_format
-query có dạng field_and_format[field=abc,format=abc]
+
+	...{field=abc,format=abc}
 */
 func ParseFieldAndFormat(m fulltextsearch.Querier) *types.FieldAndFormat {
 	query := types.NewFieldAndFormat()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.FIELD:
-				v := string(value.(fulltextsearch.Field))
+			case "field":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Field = v
-			case fulltextsearch.FORMAT:
-				v := string(value.(fulltextsearch.Format))
+			case "format":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Field = v
-			case fulltextsearch.INCLUDEUNMAPPED:
-				v := bool(value.(fulltextsearch.IncludeUnmapped))
+			case "include_unmapped":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.IncludeUnmapped = &v
 			}
 		}
@@ -248,109 +943,243 @@ func ParseFieldAndFormat(m fulltextsearch.Querier) *types.FieldAndFormat {
 
 /*
 phân tích câu query highlight
-query có dạng highlight[field=abc,format=abc]
-  - highlight_fields thay thế cho fields
-  - highlight_order thay thế cho order
+
+	highlight{options{a:b,b:c}}
 */
 func ParseHighLight(m fulltextsearch.Querier) *types.Highlight {
 	query := types.NewHighlight()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.BOUNDARYCHARS:
-				v := string(value.(fulltextsearch.BoundaryChars))
+			case "boundary_chars":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.BoundaryChars = &v
-			case fulltextsearch.BOUNDARYMAXSCAN:
-				v := int(value.(fulltextsearch.BoundaryMaxScan))
+			case "boundary_max_scan":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.BoundaryMaxScan = &v
-			case fulltextsearch.BOUNDARYSCANNER:
+			case "boundary_scanner":
 				b := boundaryscanner.BoundaryScanner{}
-				v := string(value.(fulltextsearch.BoundaryScanner))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				b.Name = v
 				query.BoundaryScanner = &b
-			case fulltextsearch.BOUNDARYSCANNERLOCALE:
-				v := string(value.(fulltextsearch.BoundaryScannerLocale))
+			case "boundary_scanner_locale":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.BoundaryScannerLocale = &v
-			case fulltextsearch.ENCODER:
+			case "encoder":
 				b := highlighterencoder.HighlighterEncoder{}
-				v := string(value.(fulltextsearch.Encoder))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				b.Name = v
 				query.Encoder = &b
-			case fulltextsearch.HIGHLIGHTFIELDS:
+			case "fields":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				query.Fields = ParseHighLightFields(field)
-			case fulltextsearch.FORCESOURCE:
-				v := bool(value.(fulltextsearch.ForceSource))
+			case "force_source":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.ForceSource = &v
-			case fulltextsearch.FRAGMENTSIZE:
-				v := int(value.(fulltextsearch.FragmentSize))
+			case "fragment_size":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.FragmentSize = &v
-			case fulltextsearch.FRAGMENTER:
+			case "fragmenter":
 				b := highlighterfragmenter.HighlighterFragmenter{}
-				v := string(value.(fulltextsearch.Fragmenter))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				b.Name = v
 				query.Fragmenter = &b
-			case fulltextsearch.HIGHLIGHTFILTER:
-				v := bool(value.(fulltextsearch.HighlightFilter))
+			case "highlight_filter":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.HighlightFilter = &v
-			case fulltextsearch.HIGHLIGHTQUERY:
+			case "highlight_query":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				query.HighlightQuery = ParseQueryToSearch(field)
-			case fulltextsearch.MAXANALYZEDOFFSET:
-				v := int(value.(fulltextsearch.MaxAnalyzedOffset))
+			case "max_analyzed_offset":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.MaxAnalyzedOffset = &v
-			case fulltextsearch.MAXFRAGMENTLENGTH:
-				v := int(value.(fulltextsearch.MaxFragmentLength))
+			case "max_fragment_length":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.MaxFragmentLength = &v
-			case fulltextsearch.NOMATCHSIZE:
-				v := int(value.(fulltextsearch.NoMatchSize))
+			case "no_match_size":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.NoMatchSize = &v
-			case fulltextsearch.NUMBEROFFRAGMENTS:
-				v := int(value.(fulltextsearch.NumberOfFragments))
+			case "number_of_fragments":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.NumberOfFragments = &v
-			case fulltextsearch.OPTIONS:
-				field := value.(fulltextsearch.Querier)
+			case "options":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				options := make(map[string]json.RawMessage)
-				pars := field.GetParams().(map[fulltextsearch.QueryKey]interface{})
+				pars, ok := field.GetParams().(map[string]interface{})
+				if !ok {
+					break
+				}
 				for k, v := range pars {
-					strKey := fmt.Sprintf("%v", k)
-					strValue := json.RawMessage(fmt.Sprintf("%v", v))
-					options[strKey] = strValue
+					s, ok := v.(string)
+					if ok {
+						strValue := json.RawMessage(s)
+						options[k] = strValue
+					}
 				}
 				query.Options = options
-			case fulltextsearch.HIGHLIGHTORDER:
+			case "order":
 				b := highlighterorder.HighlighterOrder{}
-				v := string(value.(fulltextsearch.HighlightOrder))
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				b.Name = v
 				query.Order = &b
-			case fulltextsearch.PHRASELIMIT:
-				v := int(value.(fulltextsearch.PhraseLimit))
+			case "phrase_limit":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.PhraseLimit = &v
-			case fulltextsearch.POSTTAGS:
-				v := []string(value.(fulltextsearch.PostTags))
-				query.PostTags = v
-			case fulltextsearch.PRETAGS:
-				v := []string(value.(fulltextsearch.PreTags))
-				query.PreTags = v
-			case fulltextsearch.REQUIREFIELDMATCH:
-				v := bool(value.(fulltextsearch.RequireFieldMatch))
+			case "post_tags":
+				field, ok := value.(fulltextsearch.Querier)
+
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.PostTags = fields
+			case "pre_tags":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.PreTags = fields
+			case "require_field_match":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.RequireFieldMatch = &v
-			case fulltextsearch.TAGSSCHEMA:
+			case "tags_schema":
 				b := highlightertagsschema.HighlighterTagsSchema{}
-				v := string(value.(fulltextsearch.TagsSchema))
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				b.Name = v
 				query.TagsSchema = &b
-			case fulltextsearch.TYPE:
+			case "type":
 				b := highlightertype.HighlighterType{}
-				v := string(value.(fulltextsearch.Type))
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				b.Name = v
 				query.Type = &b
 			}
@@ -360,106 +1189,278 @@ func ParseHighLight(m fulltextsearch.Querier) *types.Highlight {
 }
 
 /*
-Phân tích câu query hightlight_fields
-câu query có dạng intervals[fields[all_of[...]]]
-  - highlight_analyzer thay the cho analyzer
+Phân tích câu query hightlight_fields *
+
+	...{analyzer{}}
 */
 func ParseHighLightFields(m fulltextsearch.Querier) map[string]types.HighlightField {
 	hight := make(map[string]types.HighlightField)
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewHighlightField()
-			options := value.(fulltextsearch.Querier)
+			options, ok := value.(fulltextsearch.Querier)
+
+			if !ok {
+				break
+			}
 			imapOptions := options.GetParams()
-			mapOptions := imapOptions.(map[fulltextsearch.QueryKey]interface{})
+			mapOptions := imapOptions.(map[string]interface{})
 			for field, value := range mapOptions {
 				switch field {
-				case fulltextsearch.HIGHLIGHTANALYZER:
+				case "analyzer":
 					field, ok := value.(fulltextsearch.Querier)
 					if !ok {
 						break
 					}
 					query.Analyzer = ParseHighlightAnalyzer(field)
-				case fulltextsearch.BOUNDARYCHARS:
-					v := string(value.(fulltextsearch.BoundaryChars))
+				case "boundary_chars":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v := s
 					query.BoundaryChars = &v
-				case fulltextsearch.BOUNDARYMAXSCAN:
-					v := int(value.(fulltextsearch.BoundaryMaxScan))
+				case "boundary_max_scan":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
 					query.BoundaryMaxScan = &v
-				case fulltextsearch.BOUNDARYSCANNER:
+				case "boundary_scanner":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
 					b := boundaryscanner.BoundaryScanner{}
-					v := string(value.(fulltextsearch.BoundaryScanner))
+					v := s
 					b.Name = v
 					query.BoundaryScanner = &b
-				case fulltextsearch.FORCESOURCE:
-					v := bool(value.(fulltextsearch.ForceSource))
+				case "boundary_scanner_locale":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v := s
+					query.BoundaryScannerLocale = &v
+				case "force_source":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseBool(s)
+					if err != nil {
+						break
+					}
 					query.ForceSource = &v
-				case fulltextsearch.FRAGMENTSIZE:
-					v := int(value.(fulltextsearch.FragmentSize))
+				case "fragment_offset":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
+					query.FragmentOffset = &v
+				case "fragment_size":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
 					query.FragmentSize = &v
-				case fulltextsearch.FRAGMENTER:
+				case "fragmenter":
 					b := highlighterfragmenter.HighlighterFragmenter{}
-					v := string(value.(fulltextsearch.Fragmenter))
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v := s
 					b.Name = v
 					query.Fragmenter = &b
-				case fulltextsearch.HIGHLIGHTFILTER:
-					v := bool(value.(fulltextsearch.HighlightFilter))
+				case "highlight_filter":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseBool(s)
+					if err != nil {
+						break
+					}
 					query.HighlightFilter = &v
-				case fulltextsearch.HIGHLIGHTQUERY:
+				case "highlight_query":
 					field, ok := value.(fulltextsearch.Querier)
 					if !ok {
 						break
 					}
 					query.HighlightQuery = ParseQueryToSearch(field)
-				case fulltextsearch.MAXANALYZEDOFFSET:
-					v := int(value.(fulltextsearch.MaxAnalyzedOffset))
+				case "matched_fields":
+					field, ok := value.(fulltextsearch.Querier)
+
+					if !ok {
+						break
+					}
+					fields := make([]string, 0)
+					pars, ok := field.GetParams().([]interface{})
+					if !ok {
+						break
+					}
+					for _, v := range pars {
+						s, ok := v.(string)
+						if ok {
+							fields = append(fields, s)
+						}
+					}
+					query.MatchedFields = fields
+				case "max_analyzed_offset":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
 					query.MaxAnalyzedOffset = &v
-				case fulltextsearch.MAXFRAGMENTLENGTH:
-					v := int(value.(fulltextsearch.MaxFragmentLength))
+				case "max_fragment_length":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
 					query.MaxFragmentLength = &v
-				case fulltextsearch.NOMATCHSIZE:
-					v := int(value.(fulltextsearch.NoMatchSize))
+				case "no_match_size":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
 					query.NoMatchSize = &v
-				case fulltextsearch.NUMBEROFFRAGMENTS:
-					v := int(value.(fulltextsearch.NumberOfFragments))
+				case "number_of_fragments":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
 					query.NumberOfFragments = &v
-				case fulltextsearch.OPTIONS:
-					field := value.(fulltextsearch.Querier)
+				case "options":
+					field, ok := value.(fulltextsearch.Querier)
+
+					if !ok {
+						break
+					}
 					options := make(map[string]json.RawMessage)
-					pars := field.GetParams().(map[fulltextsearch.QueryKey]interface{})
+					pars, ok := field.GetParams().(map[string]interface{})
+					if !ok {
+						break
+					}
 					for k, v := range pars {
-						strKey := fmt.Sprintf("%v", k)
-						strValue := json.RawMessage(fmt.Sprintf("%v", v))
-						options[strKey] = strValue
+						s, ok := v.(string)
+						if ok {
+							strValue := json.RawMessage(s)
+							options[k] = strValue
+						}
+
 					}
 					query.Options = options
-				case fulltextsearch.HIGHLIGHTORDER:
+				case "order":
 					b := highlighterorder.HighlighterOrder{}
-					v := string(value.(fulltextsearch.HighlightOrder))
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v := s
 					b.Name = v
 					query.Order = &b
-				case fulltextsearch.PHRASELIMIT:
-					v := int(value.(fulltextsearch.PhraseLimit))
+				case "phrase_limit":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.Atoi(s)
+					if err != nil {
+						break
+					}
 					query.PhraseLimit = &v
-				case fulltextsearch.POSTTAGS:
-					v := []string(value.(fulltextsearch.PostTags))
-					query.PostTags = v
-				case fulltextsearch.PRETAGS:
-					v := []string(value.(fulltextsearch.PreTags))
-					query.PreTags = v
-				case fulltextsearch.REQUIREFIELDMATCH:
-					v := bool(value.(fulltextsearch.RequireFieldMatch))
+				case "post_tags":
+					field, ok := value.(fulltextsearch.Querier)
+
+					if !ok {
+						break
+					}
+					fields := make([]string, 0)
+					pars, ok := field.GetParams().([]interface{})
+					if !ok {
+						break
+					}
+					for _, v := range pars {
+						s, ok := v.(string)
+						if ok {
+							fields = append(fields, s)
+						}
+					}
+					query.PostTags = fields
+				case "pre_tags":
+					field, ok := value.(fulltextsearch.Querier)
+					if !ok {
+						break
+					}
+					fields := make([]string, 0)
+					pars, ok := field.GetParams().([]interface{})
+					if !ok {
+						break
+					}
+					for _, v := range pars {
+						s, ok := v.(string)
+						if ok {
+							fields = append(fields, s)
+						}
+					}
+					query.PreTags = fields
+				case "require_field_match":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v, err := strconv.ParseBool(s)
+					if err != nil {
+						break
+					}
 					query.RequireFieldMatch = &v
-				case fulltextsearch.TAGSSCHEMA:
+				case "tags_schema":
 					b := highlightertagsschema.HighlighterTagsSchema{}
-					v := string(value.(fulltextsearch.TagsSchema))
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v := s
 					b.Name = v
 					query.TagsSchema = &b
-				case fulltextsearch.TYPE:
+				case "type":
 					b := highlightertype.HighlighterType{}
-					v := string(value.(fulltextsearch.Type))
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					v := s
 					b.Name = v
 					query.Type = &b
 
@@ -474,123 +1475,123 @@ func ParseHighLightFields(m fulltextsearch.Querier) map[string]types.HighlightFi
 }
 
 /*
-Phân tích highlight_analyzer
-câu query dạng highlight_analyzer[custom_analyzer[...],...]
+Phân tích analyzer của highlight
 
-	các dạng highlight_analyzer
-	- custom_analyzer
-	- finger_print_analyzer
-	- keyword_analyzer
-	- language_analyzer
-	- nori_analyzer
-	- pattern_analyzer
-	- simple_analyzer
-	- standar_analyzer
-	- stop_analyzer
-	- white_space_analyzer
-	- icu_analyzer
-	- kuromoji_analyzer
-	- snow_ball_analyzer
-	- dutch_analyzer
+	 highlight_analyzer{custom{}...},...}
+		các dạng highlight_analyzer
+		- custom
+		- finger_print
+		- keyword
+		- language
+		- nori
+		- pattern
+		- simple
+		- standar
+		- stop
+		- white_space
+		- icu
+		- kuromoji
+		- snow_ball
+		- dutch
 */
 func ParseHighlightAnalyzer(m fulltextsearch.Querier) types.Analyzer {
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.CUSTOMANALYZER:
+			case "custom":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseCustomAnalyzer(field)
 				return i
-			case fulltextsearch.FINGERPRINTANALYZER:
+			case "finger_print":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseFingerPrintAnalyzer(field)
 				return i
-			case fulltextsearch.KEYWORDANALYZER:
+			case "keyword":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseKeywordAnalyzer(field)
 				return i
-			case fulltextsearch.LANGUAGEANALYZER:
+			case "language":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseLanguageAnalyzer(field)
 				return i
-			case fulltextsearch.NORIANALYZER:
+			case "nori":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseNoriAnalyzer(field)
 				return i
-			case fulltextsearch.PATTERNANALYZER:
+			case "pattern":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParsePatternAnalyzer(field)
 				return i
-			case fulltextsearch.SIMPLEANALYZER:
+			case "simple":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseSimpleAnalyzer(field)
 				return i
-			case fulltextsearch.STANDARANALYZER:
+			case "standard":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseStandardAnalyzer(field)
 				return i
-			case fulltextsearch.STOPANALYZER:
+			case "stop":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseStopAnalyzer(field)
 				return i
-			case fulltextsearch.WHITESPACEANALYZER:
+			case "white_space":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseWhiteSpaceAnalyzer(field)
 				return i
-			case fulltextsearch.ICUANALYZER:
+			case "icu":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseIcuAnalyzer(field)
 				return i
-			case fulltextsearch.KUROMOJIANALYZER:
+			case "kuromoji":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseKuromojiAnalyzer(field)
 				return i
-			case fulltextsearch.SNOWBALLANALYZER:
+			case "snow":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseSnowballAnalyzer(field)
 				return i
-			case fulltextsearch.DUTCHANALYZER:
+			case "dutch":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
@@ -604,33 +1605,86 @@ func ParseHighlightAnalyzer(m fulltextsearch.Querier) types.Analyzer {
 }
 
 /*
-phân tích câu query custom_analyzer
-query có dạng custom_analyzer[...]
+phân tích câu query custom của analyzer
+
+	custom{char_filter[]...}
 */
 func ParseCustomAnalyzer(m fulltextsearch.Querier) *types.CustomAnalyzer {
 	query := types.NewCustomAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.CHARFILTER:
-				v := []string(value.(fulltextsearch.CharFilter))
-				query.CharFilter = v
-			case fulltextsearch.ANALYZERFILTER:
-				v := []string(value.(fulltextsearch.AnalyzerFilter))
-				query.Filter = v
-			case fulltextsearch.POSITIONINCREMENTGAP:
-				v := int(value.(fulltextsearch.PositionIncrementGap))
+			case "char_filter":
+				field, ok := value.(fulltextsearch.Querier)
+
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.CharFilter = fields
+			case "filter":
+				field, ok := value.(fulltextsearch.Querier)
+
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Filter = fields
+			case "position_increment_gap":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.PositionIncrementGap = &v
-			case fulltextsearch.POSITIONOFFSETGAP:
-				v := int(value.(fulltextsearch.PositionOffsetGap))
+			case "position_offset_gap":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.PositionOffsetGap = &v
-			case fulltextsearch.TOKENIZER:
-				v := string(value.(fulltextsearch.Tokenizer))
+			case "tokenizer":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Tokenizer = v
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
 			}
 		}
@@ -639,28 +1693,54 @@ func ParseCustomAnalyzer(m fulltextsearch.Querier) *types.CustomAnalyzer {
 }
 
 /*
-phân tích câu query stop_analyzer
-query có dạng custom_analyzer[...]
-  - analizer_version thay the version
+phân tích câu query stop cua analyzer
+
+	stop{...}
 */
 func ParseStopAnalyzer(m fulltextsearch.Querier) *types.StopAnalyzer {
 	query := types.NewStopAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.STOPWORDS:
-				v := []string(value.(fulltextsearch.StopWords))
-				query.Stopwords = v
-			case fulltextsearch.STOPWORDSPATH:
-				v := string(value.(fulltextsearch.StopwordsPath))
+			case "stopwords":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Stopwords = fields
+			case "stopwords_path":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.StopwordsPath = &v
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
-			case fulltextsearch.ANALYZERVERSION:
-				v := string(value.(fulltextsearch.AnalyzerVersion))
+			case "version":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Version = &v
 			}
 		}
@@ -669,37 +1749,82 @@ func ParseStopAnalyzer(m fulltextsearch.Querier) *types.StopAnalyzer {
 }
 
 /*
-phân tích câu query finger_print_analyzer
-query có dạng custom_analyzer[...]
-  - analizer_version thay the version
+phân tích câu query finger_print cua analyzer
+
+	finger_print{...}
 */
 func ParseFingerPrintAnalyzer(m fulltextsearch.Querier) *types.FingerprintAnalyzer {
 	query := types.NewFingerprintAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.MAXOUTPUTSIZE:
-				v := int(value.(fulltextsearch.MaxOutputSize))
+			case "max_output_size":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.MaxOutputSize = v
-			case fulltextsearch.STOPWORDS:
-				v := []string(value.(fulltextsearch.StopWords))
-				query.Stopwords = v
-			case fulltextsearch.PRESERVEORIGINAL:
-				v := bool(value.(fulltextsearch.PreserveOriginal))
+			case "preserve_original":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.PreserveOriginal = v
-			case fulltextsearch.SEPARATOR:
-				v := string(value.(fulltextsearch.Separator))
+			case "separator":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Separator = v
-			case fulltextsearch.STOPWORDSPATH:
-				v := string(value.(fulltextsearch.StopwordsPath))
+			case "stopwords":
+				field, ok := value.(fulltextsearch.Querier)
+
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Stopwords = fields
+			case "stopwords_path":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.StopwordsPath = &v
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
-			case fulltextsearch.ANALYZERVERSION:
-				v := string(value.(fulltextsearch.AnalyzerVersion))
+			case "version":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Version = &v
 			}
 		}
@@ -708,36 +1833,82 @@ func ParseFingerPrintAnalyzer(m fulltextsearch.Querier) *types.FingerprintAnalyz
 }
 
 /*
-phân tích câu query language_analyzer
-query có dạng language_analyzer[...]
-  - analizer_version thay the version
+phân tích câu query language cua analyzer
+
+	language{...}
 */
 func ParseLanguageAnalyzer(m fulltextsearch.Querier) *types.LanguageAnalyzer {
 	query := types.NewLanguageAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.LANGUAGE:
+			case "language":
 				lang := language.Language{}
-				v := string(value.(fulltextsearch.Language))
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				lang.Name = v
 				query.Language = lang
-			case fulltextsearch.STEMEXCLUSION:
-				v := []string(value.(fulltextsearch.StemExclusion))
-				query.StemExclusion = v
-			case fulltextsearch.STOPWORDS:
-				v := []string(value.(fulltextsearch.StopWords))
-				query.Stopwords = v
-			case fulltextsearch.STOPWORDSPATH:
-				v := string(value.(fulltextsearch.StopwordsPath))
+			case "stem_exclusion":
+				field, ok := value.(fulltextsearch.Querier)
+
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Stopwords = fields
+			case "stopwords":
+				field, ok := value.(fulltextsearch.Querier)
+
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Stopwords = fields
+			case "stopwords_path":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.StopwordsPath = &v
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
-			case fulltextsearch.ANALYZERVERSION:
-				v := string(value.(fulltextsearch.AnalyzerVersion))
+			case "version":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Version = &v
 			}
 		}
@@ -746,30 +1917,76 @@ func ParseLanguageAnalyzer(m fulltextsearch.Querier) *types.LanguageAnalyzer {
 }
 
 /*
-phân tích câu query snowball_analyzer
-query có dạng snowball_analyzer[...]
-  - analizer_version thay the version
+phân tích câu query snowball cua analyzer
+
+	snowball{...}
 */
 func ParseSnowballAnalyzer(m fulltextsearch.Querier) *types.SnowballAnalyzer {
 	query := types.NewSnowballAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.LANGUAGE:
+			case "language":
 				lang := snowballlanguage.SnowballLanguage{}
-				v := string(value.(fulltextsearch.Language))
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				lang.Name = v
 				query.Language = lang
-			case fulltextsearch.STOPWORDS:
-				v := []string(value.(fulltextsearch.StopWords))
-				query.Stopwords = v
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "stem_exclusion":
+				field, ok := value.(fulltextsearch.Querier)
+
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Stopwords = fields
+			case "stopwords":
+				field, ok := value.(fulltextsearch.Querier)
+
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Stopwords = fields
+
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
-			case fulltextsearch.ANALYZERVERSION:
-				v := string(value.(fulltextsearch.AnalyzerVersion))
+			case "version":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Version = &v
 			}
 		}
@@ -778,22 +1995,41 @@ func ParseSnowballAnalyzer(m fulltextsearch.Querier) *types.SnowballAnalyzer {
 }
 
 /*
-phân tích câu query dutch_analyzer
-query có dạng dutch_analyzer[...]
+phân tích câu query dutch cua analyzer
+
+	dutch{...}
 */
 func ParseDutchAnalyzer(m fulltextsearch.Querier) *types.DutchAnalyzer {
 	query := types.NewDutchAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
+			case "stopwords":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Stopwords = fields
 
-			case fulltextsearch.STOPWORDS:
-				v := []string(value.(fulltextsearch.StopWords))
-				query.Stopwords = v
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
 			}
 		}
@@ -802,35 +2038,74 @@ func ParseDutchAnalyzer(m fulltextsearch.Querier) *types.DutchAnalyzer {
 }
 
 /*
-phân tích câu query pattern_analyzer
-query có dạng pattern_analyzer[...]
-  - analizer_version thay the version
+phân tích câu query pattern cua analyzer
+
+	pattern{...}
 */
 func ParsePatternAnalyzer(m fulltextsearch.Querier) *types.PatternAnalyzer {
 	query := types.NewPatternAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.FLAGS:
-				v := string(value.(fulltextsearch.Flags))
+			case "flags":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Flags = &v
-			case fulltextsearch.LOWERCASE:
-				v := bool(value.(fulltextsearch.Lowercase))
+			case "lowercase":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.Lowercase = &v
-			case fulltextsearch.STOPWORDS:
-				v := []string(value.(fulltextsearch.StopWords))
-				query.Stopwords = v
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "stopwords":
+				field, ok := value.(fulltextsearch.Querier)
+
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Stopwords = fields
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
-			case fulltextsearch.PATTERN:
-				v := string(value.(fulltextsearch.Pattern))
+			case "pattern":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Pattern = v
-			case fulltextsearch.ANALYZERVERSION:
-				v := string(value.(fulltextsearch.AnalyzerVersion))
+			case "version":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Version = &v
+
 			}
 		}
 	}
@@ -838,27 +2113,52 @@ func ParsePatternAnalyzer(m fulltextsearch.Querier) *types.PatternAnalyzer {
 }
 
 /*
-phân tích câu query standar_analyzer
-query có dạng standar_analyzer[...]
-  - analizer_version thay the version
+phân tích câu query standar cua analyzer
+
+	standar{...}
 */
 func ParseStandardAnalyzer(m fulltextsearch.Querier) *types.StandardAnalyzer {
 	query := types.NewStandardAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.MAXTOKENLENGTH:
-				v := int(value.(fulltextsearch.MaxTokenLength))
+			case "max_token_length":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
 				query.MaxTokenLength = &v
-			case fulltextsearch.STOPWORDS:
-				v := []string(value.(fulltextsearch.StopWords))
-				query.Stopwords = v
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
-				query.Type = v
+			case "stopwords":
+				field, ok := value.(fulltextsearch.Querier)
 
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Stopwords = fields
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
+				query.Type = v
 			}
 		}
 	}
@@ -866,33 +2166,64 @@ func ParseStandardAnalyzer(m fulltextsearch.Querier) *types.StandardAnalyzer {
 }
 
 /*
-phân tích câu query nori_analyzer
-query có dạng nori_analyzer[...]
-  - analizer_version thay the version
+phân tích câu query nori cua analyzer
+
+	nori{...}
 */
 func ParseNoriAnalyzer(m fulltextsearch.Querier) *types.NoriAnalyzer {
 	query := types.NewNoriAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.DECOMPOUNDMODE:
+			case "decompound_mode":
 				decom := noridecompoundmode.NoriDecompoundMode{}
-				v := string(value.(fulltextsearch.DecompoundMode))
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				decom.Name = v
 				query.DecompoundMode = &decom
-			case fulltextsearch.STOPTAGS:
-				v := []string(value.(fulltextsearch.Stoptags))
-				query.Stoptags = v
-			case fulltextsearch.USERDICTIONARY:
-				v := string(value.(fulltextsearch.UserDictionary))
+			case "stoptags":
+				field, ok := value.(fulltextsearch.Querier)
+
+				if !ok {
+					break
+				}
+				fields := make([]string, 0)
+				pars, ok := field.GetParams().([]interface{})
+				if !ok {
+					break
+				}
+				for _, v := range pars {
+					s, ok := v.(string)
+					if ok {
+						fields = append(fields, s)
+					}
+				}
+				query.Stoptags = fields
+			case "user_dictionary":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.UserDictionary = &v
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
-			case fulltextsearch.ANALYZERVERSION:
-				v := string(value.(fulltextsearch.AnalyzerVersion))
+			case "version":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Version = &v
 			}
 		}
@@ -901,22 +2232,30 @@ func ParseNoriAnalyzer(m fulltextsearch.Querier) *types.NoriAnalyzer {
 }
 
 /*
-phân tích câu query white_space_analyzer
-query có dạng white_space_analyzer[...]
-  - analizer_version thay the version
+phân tích câu query white_space cua analyzer
+
+	white_space{...}
 */
 func ParseWhiteSpaceAnalyzer(m fulltextsearch.Querier) *types.WhitespaceAnalyzer {
 	query := types.NewWhitespaceAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
-			case fulltextsearch.ANALYZERVERSION:
-				v := string(value.(fulltextsearch.AnalyzerVersion))
+			case "version":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Version = &v
 			}
 		}
@@ -925,28 +2264,41 @@ func ParseWhiteSpaceAnalyzer(m fulltextsearch.Querier) *types.WhitespaceAnalyzer
 }
 
 /*
-phân tích câu query icu_analyzer
-query có dạng icu_analyzer[...]
+phân tích câu query icu cua analyzer
+
+	icu{...}
 */
 func ParseIcuAnalyzer(m fulltextsearch.Querier) *types.IcuAnalyzer {
 	query := types.NewIcuAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.METHOD:
+			case "method":
 				method := icunormalizationtype.IcuNormalizationType{}
-				v := string(value.(fulltextsearch.Method))
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				method.Name = v
 				query.Method = method
-			case fulltextsearch.MODE:
+			case "mode":
 				mod := icunormalizationmode.IcuNormalizationMode{}
-				v := string(value.(fulltextsearch.Mode))
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				mod.Name = v
 				query.Mode = mod
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
 			}
 		}
@@ -955,26 +2307,38 @@ func ParseIcuAnalyzer(m fulltextsearch.Querier) *types.IcuAnalyzer {
 }
 
 /*
-phân tích câu query icu_analyzer
+phân tích câu query kuromoji analyzer
 query có dạng icu_analyzer[...]
 */
 func ParseKuromojiAnalyzer(m fulltextsearch.Querier) *types.KuromojiAnalyzer {
 	query := types.NewKuromojiAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.MODE:
+			case "mode":
 				mod := kuromojitokenizationmode.KuromojiTokenizationMode{}
-				v := string(value.(fulltextsearch.Mode))
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				mod.Name = v
 				query.Mode = mod
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
-			case fulltextsearch.USERDICTIONARY:
-				v := string(value.(fulltextsearch.UserDictionary))
+			case "user_dictionary":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.UserDictionary = &v
 			}
 		}
@@ -983,22 +2347,30 @@ func ParseKuromojiAnalyzer(m fulltextsearch.Querier) *types.KuromojiAnalyzer {
 }
 
 /*
-phân tích câu query keyword_analyzer
-query có dạng keyword_analyzer[...]
-  - analizer_version thay the version
+phân tích câu query keyword cua analyzer
+
+	keyword{...}
 */
 func ParseKeywordAnalyzer(m fulltextsearch.Querier) *types.KeywordAnalyzer {
 	query := types.NewKeywordAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
-			case fulltextsearch.ANALYZERVERSION:
-				v := string(value.(fulltextsearch.AnalyzerVersion))
+			case "version":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Version = &v
 			}
 		}
@@ -1007,22 +2379,30 @@ func ParseKeywordAnalyzer(m fulltextsearch.Querier) *types.KeywordAnalyzer {
 }
 
 /*
-phân tích câu query simple_analyzer
-query có dạng keyword_analyzer[...]
-  - analizer_version thay the version
+phân tích câu query simple cua analyzer
+
+	simple{...}
 */
 func ParseSimpleAnalyzer(m fulltextsearch.Querier) *types.SimpleAnalyzer {
 	query := types.NewSimpleAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.TYPE:
-				v := string(value.(fulltextsearch.Type))
+			case "type":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Type = v
-			case fulltextsearch.ANALYZERVERSION:
-				v := string(value.(fulltextsearch.AnalyzerVersion))
+			case "version":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v := s
 				query.Version = &v
 			}
 		}
@@ -1032,41 +2412,229 @@ func ParseSimpleAnalyzer(m fulltextsearch.Querier) *types.SimpleAnalyzer {
 
 /*
 Phân tích câu query has_child
-câu query có dạng nested[boost=3,...]
-  - query_search thay thế cho query
+câu query có dạng has_child{boost=3,...}
 */
-func ParseHasChildQuery(m fulltextsearch.Querier) *types.NestedQuery {
-	query := types.NewNestedQuery()
+func ParseHasChildQuery(m fulltextsearch.Querier) *types.HasChildQuery {
+	query := types.NewHasChildQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.BOOST:
-				v := float32(value.(fulltextsearch.Boost))
-				query.Boost = &v
-			case fulltextsearch.IGNOREUNMAPPED:
-				v := bool(value.(fulltextsearch.IgnoreUnmapped))
+			case "boost":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
+			case "ignore_unmapped":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
 				query.IgnoreUnmapped = &v
-			case fulltextsearch.QUERYSEARCH:
-				field := value.(fulltextsearch.Querier)
+			case "inner_hits":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				i := ParseInnerHits(field)
+				query.InnerHits = i
+			case "max_children":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
+				query.MaxChildren = &v
+			case "min_children":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				if !ok {
+					break
+				}
+				v, err := strconv.Atoi(s)
+				if err != nil {
+					break
+				}
+				query.MinChildren = &v
+			case "query":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
 				i := ParseQueryToSearch(field)
 				query.Query = i
-			// case fulltextsearch.INNERHITS:
-			// 	field, ok := value.(fulltextsearch.Querier)
-			// 	if !ok {
-			// 		break
-			// 	}
-			// 	i := ParseInnerHits(field)
-			// 	query.InnerHits = i
-			case fulltextsearch.QUERYNAME:
-				v := string(value.(fulltextsearch.QueryName))
-				query.QueryName_ = &v
-			case fulltextsearch.SCOREMODE:
+			case "_name":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.QueryName_ = &s
+			case "score_mode":
 				scm := childscoremode.ChildScoreMode{}
-				v := string(value.(fulltextsearch.ScoreMode))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				scm.Name = v
 				query.ScoreMode = &scm
+			case "type":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Type = v
+			}
+		}
+	}
+	return query
+}
+
+/*
+Phân tích câu query has_child
+
+	has_child{boost=3,...}
+*/
+func ParseHasParentQuery(m fulltextsearch.Querier) *types.HasParentQuery {
+	query := types.NewHasParentQuery()
+	params := m.GetParams()
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			switch key {
+			case "boost":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+
+				v, err := strconv.ParseFloat(s, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
+			case "ignore_unmapped":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.IgnoreUnmapped = &v
+			case "inner_hits":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				i := ParseInnerHits(field)
+				query.InnerHits = i
+
+			case "query":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				i := ParseQueryToSearch(field)
+				query.Query = i
+			case "_name":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.QueryName_ = &s
+			case "parent_type":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.ParentType = v
+			case "score":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.Score = &v
+			}
+		}
+	}
+	return query
+}
+func ParseParentIdQuery(m fulltextsearch.Querier) *types.ParentIdQuery {
+	query := types.NewParentIdQuery()
+	params := m.GetParams()
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			switch key {
+			case "boost":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
+			case "ignore_unmapped":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					break
+				}
+				query.IgnoreUnmapped = &v
+			case "_name":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.QueryName_ = &v
+			case "id":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Id = &v
+			case "type":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Type = &v
+
 			}
 		}
 	}

@@ -17,81 +17,102 @@ type DecayParameters struct {
 
 /*
 Phân tích câu query bool
-câu query có dạng bool[filter[query_search[...],query_search[...]],must[query_search[...]],...]
+câu query có dạng bool{filter[{...},{...}}],must[{...}],...}
 */
 func ParseBoolQuery(m fulltextsearch.Querier) *types.BoolQuery {
 	query := types.NewBoolQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.BOOST:
-				v := float32(value.(fulltextsearch.Boost))
-				query.Boost = &v
-			case fulltextsearch.MINIMUMSHOULDMATCH:
-				v := value.(fulltextsearch.MinimumShouldMatch)
-				query.MinimumShouldMatch = v
-			case fulltextsearch.FILTER:
+			case "boost":
+				str, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(str, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
+			case "minimum_should_match":
+				query.MinimumShouldMatch = value
+			case "filter":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
-				options, ok := field.GetParams().([]fulltextsearch.Querier)
+				options, ok := field.GetParams().([]interface{})
 				if !ok {
 					break
 				}
 				sliceQuery := []types.Query{}
 				for _, q := range options {
-					i := ParseQueryToSearch(q)
-					sliceQuery = append(sliceQuery, *i)
+					if que, ok := q.(fulltextsearch.Querier); ok {
+						i := ParseQueryToSearch(que)
+						sliceQuery = append(sliceQuery, *i)
+					}
 				}
 				query.Filter = sliceQuery
-			case fulltextsearch.MUST:
+			case "must":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
-				options, ok := field.GetParams().([]fulltextsearch.Querier)
+				options, ok := field.GetParams().([]interface{})
 				if !ok {
 					break
 				}
 				sliceQuery := []types.Query{}
 				for _, q := range options {
-					i := ParseQueryToSearch(q)
-					sliceQuery = append(sliceQuery, *i)
+					if que, ok := q.(fulltextsearch.Querier); ok {
+						i := ParseQueryToSearch(que)
+						sliceQuery = append(sliceQuery, *i)
+					}
 				}
 				query.Must = sliceQuery
-			case fulltextsearch.MUSTNOT:
+			case "must_not":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
-				options, ok := field.GetParams().([]fulltextsearch.Querier)
+				options, ok := field.GetParams().([]interface{})
 				if !ok {
 					break
 				}
 				sliceQuery := []types.Query{}
 				for _, q := range options {
-					i := ParseQueryToSearch(q)
-					sliceQuery = append(sliceQuery, *i)
+					if que, ok := q.(fulltextsearch.Querier); ok {
+						i := ParseQueryToSearch(que)
+						sliceQuery = append(sliceQuery, *i)
+					}
 				}
 				query.MustNot = sliceQuery
-			case fulltextsearch.SHOULD:
+			case "should":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
-				options, ok := field.GetParams().([]fulltextsearch.Querier)
+				options, ok := field.GetParams().([]interface{})
 				if !ok {
 					break
 				}
 				sliceQuery := []types.Query{}
 				for _, q := range options {
-					i := ParseQueryToSearch(q)
-					sliceQuery = append(sliceQuery, *i)
+					if que, ok := q.(fulltextsearch.Querier); ok {
+						i := ParseQueryToSearch(que)
+						sliceQuery = append(sliceQuery, *i)
+					}
 				}
 				query.Should = sliceQuery
+			case "_name":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.QueryName_ = &v
 			}
 		}
 	}
@@ -100,37 +121,53 @@ func ParseBoolQuery(m fulltextsearch.Querier) *types.BoolQuery {
 
 /*
 Phân tích câu query Boosting
-Câu query có dạng boosting[negative[...],positive[...],...]
+Câu query có dạng boosting{negative{...},positive{...},...}
 */
 func ParseBoostingQuery(m fulltextsearch.Querier) *types.BoostingQuery {
 	query := types.NewBoostingQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.BOOST:
-				v := float32(value.(fulltextsearch.Boost))
-				query.Boost = &v
-			case fulltextsearch.NEGATIVEBOOST:
-				v := types.Float64(value.(fulltextsearch.NegativeBoost))
-				query.NegativeBoost = v
-			case fulltextsearch.NEGATIVE:
+			case "boost":
+				str, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(str, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
+			case "negative_boost":
+				str, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(str, 64)
+				if err != nil {
+					break
+				}
+				vFloat64 := types.Float64(v)
+				query.NegativeBoost = vFloat64
+			case "negative":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseQueryToSearch(field)
 				query.Negative = i
-			case fulltextsearch.POSITIVE:
+			case "positive":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseQueryToSearch(field)
 				query.Positive = i
-			case fulltextsearch.QUERYNAME:
-				v := string(value.(fulltextsearch.QueryName))
+			case "_name":
+				v := value.(string)
 				query.QueryName_ = &v
 			}
 		}
@@ -140,28 +177,38 @@ func ParseBoostingQuery(m fulltextsearch.Querier) *types.BoostingQuery {
 
 /*
 Phân tích câu query constantscore
-Câu query có dạng constant_score[filter[...],...]
+Câu query có dạng constant_score{filter{...},...}
 */
 func ParseConstantScoreQuery(m fulltextsearch.Querier) *types.ConstantScoreQuery {
 	query := types.NewConstantScoreQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.BOOST:
-				v := float32(value.(fulltextsearch.Boost))
-				query.Boost = &v
-
-			case fulltextsearch.FILTER:
+			case "boost":
+				str, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(str, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
+			case "filter":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseQueryToSearch(field)
 				query.Filter = i
-			case fulltextsearch.QUERYNAME:
-				v := string(value.(fulltextsearch.QueryName))
+			case "_name":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.QueryName_ = &v
 			}
 		}
@@ -171,40 +218,58 @@ func ParseConstantScoreQuery(m fulltextsearch.Querier) *types.ConstantScoreQuery
 
 /*
 Phân tích câu query dismax
-Câu query có dạng dis_max[queries[query_search[...]],...]
+Câu query có dạng dis_max{queries[{...}],...}
 */
 func ParseDisMaxQuery(m fulltextsearch.Querier) *types.DisMaxQuery {
 	query := types.NewDisMaxQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.BOOST:
-				v := float32(value.(fulltextsearch.Boost))
-				query.Boost = &v
+			case "boost":
+				str, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(str, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
 
-			case fulltextsearch.QUERIES:
+			case "queries":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
-				options, ok := field.GetParams().([]fulltextsearch.Querier)
+				options, ok := field.GetParams().([]interface{})
 				if !ok {
 					break
 				}
 				sliceQuery := []types.Query{}
 				for _, q := range options {
-					i := ParseQueryToSearch(q)
-					sliceQuery = append(sliceQuery, *i)
+					if que, ok := q.(fulltextsearch.Querier); ok {
+						i := ParseQueryToSearch(que)
+						sliceQuery = append(sliceQuery, *i)
+					}
 				}
 				query.Queries = sliceQuery
-			case fulltextsearch.QUERYNAME:
-				v := string(value.(fulltextsearch.QueryName))
+			case "_name":
+				v := value.(string)
 				query.QueryName_ = &v
-			case fulltextsearch.TIEBREAKER:
-				v := types.Float64(value.(fulltextsearch.TieBreaker))
-				query.TieBreaker = &v
+			case "tie_breaker":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					break
+				}
+				vFloat64 := types.Float64(v)
+				query.TieBreaker = &vFloat64
 
 			}
 		}
@@ -213,58 +278,93 @@ func ParseDisMaxQuery(m fulltextsearch.Querier) *types.DisMaxQuery {
 }
 
 /*
-Phân tích câu query FunctionScore
-Câu query có dạng function_score[query_search[...],functions[function_score[exp[...],function_score[gauss[...]]]]],...]
-  - function_score trong functions[function_score là trường hợp con
-  - sử dụng "query_search" để thay thế "query"
+Phân tích câu query fuction_score
+Câu query có dạng function_score{query{...},functions[{exp{...}],...}
 */
 func ParseFunctionScoreQuery(m fulltextsearch.Querier) *types.FunctionScoreQuery {
 	query := types.NewFunctionScoreQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.BOOST:
-				v := float32(value.(fulltextsearch.Boost))
-				query.Boost = &v
-			case fulltextsearch.BOOSTMODE:
+			case "boost":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 32)
+				if err != nil {
+					break
+				}
+				vFloat32 := float32(v)
+				query.Boost = &vFloat32
+			case "boost_mode":
 				boostMode := functionboostmode.FunctionBoostMode{}
-				v := string(value.(fulltextsearch.BoostMode))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				boostMode.Name = v
 				query.BoostMode = &boostMode
-			case fulltextsearch.QUERYNAME:
-				v := string(value.(fulltextsearch.QueryName))
+			case "_name":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				query.QueryName_ = &v
-				/* sử dụng query_search để thay thế query */
-			case fulltextsearch.QUERYSEARCH:
-				field := value.(fulltextsearch.Querier)
-				i := ParseQueryToSearch(field)
-				query.Query = i
-			case fulltextsearch.FUNCTIONS:
+			case "query":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
-				options, ok := field.GetParams().([]fulltextsearch.Querier)
+				i := ParseQueryToSearch(field)
+				query.Query = i
+			case "functions":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				options, ok := field.GetParams().([]interface{})
 				if !ok {
 					break
 				}
 				sliceQuery := []types.FunctionScore{}
 				for _, q := range options {
-					i := ParseFunctionScore(q)
-					sliceQuery = append(sliceQuery, *i)
+					if que, ok := q.(fulltextsearch.Querier); ok {
+						i := ParseFunctionScore(que)
+						sliceQuery = append(sliceQuery, *i)
+					}
 				}
 				query.Functions = sliceQuery
-			case fulltextsearch.MINSCORE:
-				v := types.Float64(value.(fulltextsearch.MinScore))
-				query.MinScore = &v
-			case fulltextsearch.MAXBOOST:
-				v := types.Float64(value.(fulltextsearch.MaxBoost))
-				query.MaxBoost = &v
-			case fulltextsearch.SCOREMODE:
+			case "min_score":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					break
+				}
+				vFloat64 := types.Float64(v)
+				query.MinScore = &vFloat64
+			case "max_boost":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					break
+				}
+				vFloat64 := types.Float64(v)
+				query.MaxBoost = &vFloat64
+			case "score_mode":
 				scoreMode := functionscoremode.FunctionScoreMode{}
-				v := string(value.(fulltextsearch.ScoreMode))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				scoreMode.Name = v
 				query.ScoreMode = &scoreMode
 			}
@@ -276,67 +376,100 @@ func ParseFunctionScoreQuery(m fulltextsearch.Querier) *types.FunctionScoreQuery
 /*
 Phân tích trường function_score trong Functions trong FunctionScoreQuery
 
-	functions[function_score[...],...]
+	functions[{...},{...}]
 */
 func ParseFunctionScore(m fulltextsearch.Querier) *types.FunctionScore {
 	query := types.NewFunctionScore()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.EXP:
+			case "exp":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseDecayFunction(field)
 				query.Exp = i
-			case fulltextsearch.FIELDVALUEFACTOR:
+			case "field_value_factor":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseFieldValueFactor(field)
 				query.FieldValueFactor = i
-			case fulltextsearch.FILTER:
+			case "filter":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseQueryToSearch(field)
 				query.Filter = i
-			case fulltextsearch.GAUSS:
+			case "gauss":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseDecayFunction(field)
 				query.Gauss = i
-			case fulltextsearch.LINEAR:
+			case "linear":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseDecayFunction(field)
 				query.Linear = i
-			case fulltextsearch.RANDOMSCORE:
+			case "random_score":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseRandomScore(field)
 				query.RandomScore = i
-			case fulltextsearch.SCRIPTSCORE:
+			case "script_score":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseScriptScore(field)
 				query.ScriptScore = i
-			case fulltextsearch.WEIGHT:
-				v := types.Float64(value.(fulltextsearch.Weight))
-				query.Weight = &v
+			case "weight":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					break
+				}
+				vFloat64 := types.Float64(v)
+				query.Weight = &vFloat64
+			}
+		}
+	}
+	return query
+}
+
+func ParseRandomScore(m fulltextsearch.Querier) *types.RandomScoreFunction {
+	query := types.NewRandomScoreFunction()
+	params := m.GetParams()
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			switch key {
+			case "field":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Field = &v
+			case "seed":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Seed = v
 			}
 		}
 	}
@@ -344,42 +477,119 @@ func ParseFunctionScore(m fulltextsearch.Querier) *types.FunctionScore {
 }
 
 /*
-Phân tích DecayFunction
+phân tích script_score
+query có dạng script_score{script{...}}
+*/
+func ParseScriptScore(m fulltextsearch.Querier) *types.ScriptScoreFunction {
+	query := types.NewScriptScoreFunction()
+	params := m.GetParams()
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			switch key {
+			case "script":
+				field, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				query.Script = *ParseScript(field)
+			}
+		}
+	}
+	return query
+}
+
+/*
+phân tích field_value_factor
+query có dạng field_value_factor{script{...}}
+*/
+
+func ParseFieldValueFactor(m fulltextsearch.Querier) *types.FieldValueFactorScoreFunction {
+	query := types.NewFieldValueFactorScoreFunction()
+	params := m.GetParams()
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			switch key {
+			case "factor":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					break
+				}
+				vFloat64 := types.Float64(v)
+				query.Factor = &vFloat64
+			case "field":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				query.Field = v
+			case "missing":
+				s, ok := value.(string)
+				if !ok {
+					break
+				}
+				v, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					break
+				}
+				vFloat64 := types.Float64(v)
+				query.Missing = &vFloat64
+			case "modifier":
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
+				mode := fieldvaluefactormodifier.FieldValueFactorModifier{}
+				mode.Name = v
+				query.Modifier = &mode
+			}
+		}
+	}
+	return query
+}
+
+/*
+Phân tích exp,gauss,linear(decayfunction)
 
 	các dạng decayfunction
-	- untyped_decay_function[decay_parameters[fiels[decay=cay,offset=off,origin=origin,scale=2]]]
-	- date_decay_function[]
-	- numeric_decay_function[]
-	- geo_decay_function[]
+	- untyped{}
+	- date{}
+	- numeric{}
+	- geo{}
 */
 func ParseDecayFunction(m fulltextsearch.Querier) types.DecayFunction {
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.UNTYPEDDECAYFUNCTION:
+			case "untyped":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseUntypedDecayFunction(field)
 				return i
-			case fulltextsearch.DATEDECAYFUNCTION:
+			case "date":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseDateDecayFunction(field)
 				return i
-			case fulltextsearch.NUMERICDECAYFUNCTION:
+			case "numeric":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				i := ParseNumericDecayFunction(field)
 				return i
-			case fulltextsearch.GEODECAYFUNCTION:
+			case "geo":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
@@ -392,86 +602,30 @@ func ParseDecayFunction(m fulltextsearch.Querier) types.DecayFunction {
 	return nil
 }
 
-func ParseRandomScore(m fulltextsearch.Querier) *types.RandomScoreFunction {
-	query := types.NewRandomScoreFunction()
-	params := m.GetParams()
-	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
-		for key, value := range t {
-			switch key {
-			case fulltextsearch.FIELD:
-				v := string(value.(fulltextsearch.Field))
-				query.Field = &v
-			case fulltextsearch.SEED:
-				v := string(value.(fulltextsearch.Seed))
-				query.Seed = v
-			}
-		}
-	}
-	return query
-}
-func ParseScriptScore(m fulltextsearch.Querier) *types.ScriptScoreFunction {
-	query := types.NewScriptScoreFunction()
-	params := m.GetParams()
-	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
-		for key, value := range t {
-			switch key {
-			case fulltextsearch.SCRIPT:
-				field, ok := value.(fulltextsearch.Querier)
-				if !ok {
-					break
-				}
-				query.Script = *ParseScript(field)
-			}
-		}
-	}
-	return query
-}
-
-func ParseFieldValueFactor(m fulltextsearch.Querier) *types.FieldValueFactorScoreFunction {
-	query := types.NewFieldValueFactorScoreFunction()
-	params := m.GetParams()
-	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
-		for key, value := range t {
-			switch key {
-			case fulltextsearch.FACTOR:
-				v := types.Float64(value.(fulltextsearch.Factor))
-				query.Factor = &v
-			case fulltextsearch.FIELD:
-				v := string(value.(fulltextsearch.Field))
-				query.Field = v
-			case fulltextsearch.MISSING:
-				v := types.Float64(value.(fulltextsearch.Missing))
-				query.Missing = &v
-			case fulltextsearch.MODIFIER:
-				v := string(value.(fulltextsearch.Modifier))
-				mode := fieldvaluefactormodifier.FieldValueFactorModifier{}
-				mode.Name = v
-				query.Modifier = &mode
-			}
-		}
-	}
-	return query
-}
+/*
+	phân tích untyped
+	query : untyped{decay_function_base{},multi_value_mode:testmode}
+*/
 
 func ParseUntypedDecayFunction(m fulltextsearch.Querier) *types.UntypedDecayFunction {
 	query := types.NewUntypedDecayFunction()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.DECAYPARAMETERS:
+			case "decay_function_base":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				query.DecayFunctionBase = ParseDecayPlacementUntyped(field)
-			case fulltextsearch.MULTIVALUEMODE:
+			case "multi_value_mode":
 				mode := multivaluemode.MultiValueMode{}
-				v := string(value.(fulltextsearch.MultiValueMode))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				mode.Name = v
 				query.MultiValueMode = &mode
 			}
@@ -480,11 +634,16 @@ func ParseUntypedDecayFunction(m fulltextsearch.Querier) *types.UntypedDecayFunc
 	return query
 }
 
+/*
+	phân tích decay_function_base
+	decay_function_base{fields{decay:...}}
+*/
+
 func ParseDecayPlacementUntyped(m fulltextsearch.Querier) map[string]types.DecayPlacement {
 	base := make(map[string]types.DecayPlacement)
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewDecayPlacement()
 			options, ok := value.(fulltextsearch.Querier)
@@ -492,22 +651,38 @@ func ParseDecayPlacementUntyped(m fulltextsearch.Querier) map[string]types.Decay
 				return nil
 			}
 			imapOptions := options.GetParams()
-			mapOptions := imapOptions.(map[fulltextsearch.QueryKey]interface{})
+			mapOptions := imapOptions.(map[string]interface{})
 			for field, value := range mapOptions {
 				switch field {
-				case fulltextsearch.DECAY:
-					if s, err := strconv.ParseFloat(value.(string), 64); err == nil {
+				case "decay":
+					v, ok := value.(string)
+					if !ok {
+						break
+					}
+					if s, err := strconv.ParseFloat(v, 64); err == nil {
 						f := types.Float64(s)
 						query.Decay = &f
 					}
-				case fulltextsearch.OFFSET:
-					f := json.RawMessage(value.(string))
+				case "offset":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					f := json.RawMessage(s)
 					query.Offset = f
-				case fulltextsearch.ORIGIN:
-					f := json.RawMessage(value.(string))
+				case "origin":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					f := json.RawMessage(s)
 					query.Origin = f
-				case fulltextsearch.SCALE:
-					f := json.RawMessage(value.(string))
+				case "scale":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					f := json.RawMessage(s)
 					query.Scale = f
 				}
 			}
@@ -516,22 +691,30 @@ func ParseDecayPlacementUntyped(m fulltextsearch.Querier) map[string]types.Decay
 	}
 	return base
 }
+
+/*
+phân tích date
+query : date{decay_function_base{},multi_value_mode:testmode}
+*/
 func ParseDateDecayFunction(m fulltextsearch.Querier) *types.DateDecayFunction {
 	query := types.NewDateDecayFunction()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.DECAYPARAMETERS:
+			case "decay_function_base":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				query.DecayFunctionBaseDateMathDuration = ParseDecayPlacementDate(field)
-			case fulltextsearch.MULTIVALUEMODE:
+			case "multi_value_mode":
 				mode := multivaluemode.MultiValueMode{}
-				v := string(value.(fulltextsearch.MultiValueMode))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				mode.Name = v
 				query.MultiValueMode = &mode
 			}
@@ -540,11 +723,15 @@ func ParseDateDecayFunction(m fulltextsearch.Querier) *types.DateDecayFunction {
 	return query
 }
 
+/*
+phân tích decay_function_base
+decay_function_base{fields{decay:...}}
+*/
 func ParseDecayPlacementDate(m fulltextsearch.Querier) map[string]types.DecayPlacementDateMathDuration {
 	base := make(map[string]types.DecayPlacementDateMathDuration)
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewDecayPlacementDateMathDuration()
 			options, ok := value.(fulltextsearch.Querier)
@@ -552,27 +739,31 @@ func ParseDecayPlacementDate(m fulltextsearch.Querier) map[string]types.DecayPla
 				return nil
 			}
 			imapOptions := options.GetParams()
-			mapOptions := imapOptions.(map[fulltextsearch.QueryKey]interface{})
+			mapOptions := imapOptions.(map[string]interface{})
 			for field, value := range mapOptions {
 				switch field {
-				case fulltextsearch.DECAY:
-					if s, err := strconv.ParseFloat(value.(string), 64); err == nil {
+				case "decay":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					if s, err := strconv.ParseFloat(s, 64); err == nil {
 						f := types.Float64(s)
 						query.Decay = &f
 					}
-				case fulltextsearch.OFFSET:
+				case "offset":
 					f, ok := value.(types.Duration)
 					if !ok {
 						break
 					}
 					query.Offset = f
-				case fulltextsearch.ORIGIN:
+				case "origin":
 					f, ok := value.(string)
 					if !ok {
 						break
 					}
 					query.Origin = &f
-				case fulltextsearch.SCALE:
+				case "scale":
 					f, ok := value.(types.Duration)
 					if !ok {
 						break
@@ -590,18 +781,21 @@ func ParseNumericDecayFunction(m fulltextsearch.Querier) *types.NumericDecayFunc
 	query := types.NewNumericDecayFunction()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.DECAYPARAMETERS:
+			case "decay_function_base":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				query.DecayFunctionBasedoubledouble = ParseDecayPlacementNumeric(field)
-			case fulltextsearch.MULTIVALUEMODE:
+			case "multi_value_mode":
 				mode := multivaluemode.MultiValueMode{}
-				v := string(value.(fulltextsearch.MultiValueMode))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				mode.Name = v
 				query.MultiValueMode = &mode
 			}
@@ -614,7 +808,7 @@ func ParseDecayPlacementNumeric(m fulltextsearch.Querier) map[string]types.Decay
 	base := make(map[string]types.DecayPlacementdoubledouble)
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewDecayPlacementdoubledouble()
 			options, ok := value.(fulltextsearch.Querier)
@@ -622,26 +816,42 @@ func ParseDecayPlacementNumeric(m fulltextsearch.Querier) map[string]types.Decay
 				return nil
 			}
 			imapOptions := options.GetParams()
-			mapOptions := imapOptions.(map[fulltextsearch.QueryKey]interface{})
+			mapOptions := imapOptions.(map[string]interface{})
 			for field, value := range mapOptions {
 				switch field {
-				case fulltextsearch.DECAY:
-					if s, err := strconv.ParseFloat(value.(string), 64); err == nil {
+				case "decay":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					if s, err := strconv.ParseFloat(s, 64); err == nil {
 						f := types.Float64(s)
 						query.Decay = &f
 					}
-				case fulltextsearch.OFFSET:
-					if s, err := strconv.ParseFloat(value.(string), 64); err == nil {
+				case "offset":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					if s, err := strconv.ParseFloat(s, 64); err == nil {
 						f := types.Float64(s)
 						query.Offset = &f
 					}
-				case fulltextsearch.ORIGIN:
-					if s, err := strconv.ParseFloat(value.(string), 64); err == nil {
+				case "origin":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					if s, err := strconv.ParseFloat(s, 64); err == nil {
 						f := types.Float64(s)
 						query.Origin = &f
 					}
-				case fulltextsearch.SCALE:
-					if s, err := strconv.ParseFloat(value.(string), 64); err == nil {
+				case "scale":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					if s, err := strconv.ParseFloat(s, 64); err == nil {
 						f := types.Float64(s)
 						query.Scale = &f
 					}
@@ -657,18 +867,21 @@ func ParseGeoDecayFunction(m fulltextsearch.Querier) *types.GeoDecayFunction {
 	query := types.NewGeoDecayFunction()
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
-			case fulltextsearch.DECAYPARAMETERS:
+			case "decay_function_base":
 				field, ok := value.(fulltextsearch.Querier)
 				if !ok {
 					break
 				}
 				query.DecayFunctionBaseGeoLocationDistance = ParseDecayPlacementGeo(field)
-			case fulltextsearch.MULTIVALUEMODE:
+			case "multi_value_mode":
 				mode := multivaluemode.MultiValueMode{}
-				v := string(value.(fulltextsearch.MultiValueMode))
+				v, ok := value.(string)
+				if !ok {
+					break
+				}
 				mode.Name = v
 				query.MultiValueMode = &mode
 			}
@@ -681,7 +894,7 @@ func ParseDecayPlacementGeo(m fulltextsearch.Querier) map[string]types.DecayPlac
 	base := make(map[string]types.DecayPlacementGeoLocationDistance)
 	params := m.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewDecayPlacementGeoLocationDistance()
 			options, ok := value.(fulltextsearch.Querier)
@@ -689,27 +902,31 @@ func ParseDecayPlacementGeo(m fulltextsearch.Querier) map[string]types.DecayPlac
 				return nil
 			}
 			imapOptions := options.GetParams()
-			mapOptions := imapOptions.(map[fulltextsearch.QueryKey]interface{})
+			mapOptions := imapOptions.(map[string]interface{})
 			for field, value := range mapOptions {
 				switch field {
-				case fulltextsearch.DECAY:
-					if s, err := strconv.ParseFloat(value.(string), 64); err == nil {
+				case "decay":
+					s, ok := value.(string)
+					if !ok {
+						break
+					}
+					if s, err := strconv.ParseFloat(s, 64); err == nil {
 						f := types.Float64(s)
 						query.Decay = &f
 					}
-				case fulltextsearch.OFFSET:
+				case "offset":
 					f, ok := value.(string)
 					if !ok {
 						break
 					}
 					query.Offset = &f
-				case fulltextsearch.ORIGIN:
+				case "origin":
 					f, ok := value.(types.GeoLocation)
 					if !ok {
 						break
 					}
 					query.Origin = &f
-				case fulltextsearch.SCALE:
+				case "scale":
 					f, ok := value.(string)
 					if !ok {
 						break

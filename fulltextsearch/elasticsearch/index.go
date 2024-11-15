@@ -84,61 +84,278 @@ func ParseQueryToSearch(q fulltextsearch.Querier) *types.Query {
 	query := types.NewQuery()
 	params := q.GetParams()
 	switch t := params.(type) {
-	case map[fulltextsearch.QueryKey]interface{}:
+	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
 			/* compound */
-			case fulltextsearch.BOOL:
-				b := ParseBoolQuery(value.(fulltextsearch.Querier))
+			case "bool":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				b := ParseBoolQuery(quies)
 				query.Bool = b
-			case fulltextsearch.BOOSTING:
-				b := ParseBoostingQuery(value.(fulltextsearch.Querier))
+			case "boosting":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				b := ParseBoostingQuery(quies)
 				query.Boosting = b
-			case fulltextsearch.CONSTANTSCORE:
-				c := ParseConstantScoreQuery(value.(fulltextsearch.Querier))
+			case "constant_score":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				c := ParseConstantScoreQuery(quies)
 				query.ConstantScore = c
-			case fulltextsearch.DISMAX:
-				d := ParseDisMaxQuery(value.(fulltextsearch.Querier))
+			case "dis_max":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				d := ParseDisMaxQuery(quies)
 				query.DisMax = d
-			case fulltextsearch.FUNCTIONSCORE:
-				d := ParseFunctionScoreQuery(value.(fulltextsearch.Querier))
+			case "function_score":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				d := ParseFunctionScoreQuery(quies)
 				query.FunctionScore = d
 			/* fulltext */
-			case fulltextsearch.MATCH:
-				match := ParseMatchQuery(value.(fulltextsearch.Querier))
+			case "match":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				match := ParseMatchQuery(quies)
 				query.Match = match
-			case fulltextsearch.INTERVALS:
-				in := ParseIntervalsQuery(value.(fulltextsearch.Querier))
+			case "intervals":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseIntervalsQuery(quies)
 				query.Intervals = in
-			case fulltextsearch.MATCHBOOLPREFIX:
-				in := ParseMatchBoolPrefixQuery(value.(fulltextsearch.Querier))
+			case "match_bool_prefix":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseMatchBoolPrefixQuery(quies)
 				query.MatchBoolPrefix = in
-			case fulltextsearch.MATCHPHRASE:
-				in := ParseMatchPhraseQuery(value.(fulltextsearch.Querier))
+			case "match_phrase":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseMatchPhraseQuery(quies)
 				query.MatchPhrase = in
-			case fulltextsearch.MATCHPHRASEPREFIX:
-				in := ParseMatchPhrasePrefixQuery(value.(fulltextsearch.Querier))
+			case "match_phrase_prefix":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseMatchPhrasePrefixQuery(quies)
 				query.MatchPhrasePrefix = in
-			case fulltextsearch.COMBINEDFIELDS:
-				in := ParseCombinedFieldsQuery(value.(fulltextsearch.Querier))
+			case "combined_fields":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseCombinedFieldsQuery(quies)
 				query.CombinedFields = in
-			case fulltextsearch.MULTIMATCH:
-				in := ParseMultiMatchQuery(value.(fulltextsearch.Querier))
+			case "multi_match":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseMultiMatchQuery(quies)
 				query.MultiMatch = in
-			case fulltextsearch.QUERYSTRING:
-				in := ParseQueryStringQuery(value.(fulltextsearch.Querier))
+			case "query_string":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseQueryStringQuery(quies)
 				query.QueryString = in
-			case fulltextsearch.SIMPLEQUERYSTRING:
-				in := ParseSimpleQueryStringQuery(value.(fulltextsearch.Querier))
+			case "simple_query_string":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseSimpleQueryStringQuery(quies)
 				query.SimpleQueryString = in
 				/* joining */
-			case fulltextsearch.NESTED:
-				in := ParseNestedQuery(value.(fulltextsearch.Querier))
+			case "nested":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseNestedQuery(quies)
 				query.Nested = in
+			case "has_child":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseHasChildQuery(quies)
+				query.HasChild = in
+			case "has_parent":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseHasParentQuery(quies)
+				query.HasParent = in
+			case "parent_id":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseParentIdQuery(quies)
+				query.ParentId = in
+				/* term */
+			case "exists":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseExistsQuery(quies)
+				query.Exists = in
+			case "fuzzy":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseFuzzyQuery(quies)
+				query.Fuzzy = in
+			case "ids":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseIdsQuery(quies)
+				query.Ids = in
+			case "prefix":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParsePrefixQuery(quies)
+				query.Prefix = in
+			case "range":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseRangeQuery(quies)
+				query.Range = in
+			case "regexp":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseRegexpQuery(quies)
+				query.Regexp = in
+			case "term":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseTermQuery(quies)
+				query.Term = in
+			case "terms":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseTermsQuery(quies)
+				query.Terms = in
+			case "terms_set":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseTermsQuery(quies)
+				query.Terms = in
+			case "wildcard":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseWildcardQuery(quies)
+				query.Wildcard = in
+				/* special */
+			case "distance_feature":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseDistanceFeatureQuery(quies)
+				query.DistanceFeature = in
+			case "more_like_this":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseMoreLikeThisQuery(quies)
+				query.MoreLikeThis = in
+			case "percolate":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParsePercolateQuery(quies)
+				query.Percolate = in
+			case "rank_feature":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseRankFeatureQuery(quies)
+				query.RankFeature = in
+			case "script":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseScriptQuery(quies)
+				query.Script = in
+			case "script_score":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseScriptScoreQuery(quies)
+				query.ScriptScore = in
+			case "wrapper":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseWrapperQuery(quies)
+				query.Wrapper = in
+			case "pinned":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParsePinnedQuery(quies)
+				query.Pinned = in
+			case "rule":
+				quies, ok := value.(fulltextsearch.Querier)
+				if !ok {
+					break
+				}
+				in := ParseRuleQuery(quies)
+				query.Rule = in
 			}
 
 		}
 	}
+
 	// switch q.(type) {
 	// case *fulltextsearch.QuerySearch:
 	// 	params := q.GetParams().(map[fulltextsearch.QueryKey]interface{})

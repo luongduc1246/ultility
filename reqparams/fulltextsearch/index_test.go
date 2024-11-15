@@ -2,42 +2,44 @@ package fulltextsearch
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 )
 
-func TestFullTextSearch(t *testing.T) {
-	s := "bool[boost=1.0,minimum_should_match=3,must[term[name=kimchi,age=3]]],boosting[negative[term[test=acd]]]"
-	q := NewQuerySearch()
+func TestParse(t *testing.T) {
+	s := "bool{test:abc,filter[{match{query:test}},{term{value:3}}]}"
+	q := NewQuery()
 	err := q.Parse(s)
 	fmt.Println(err)
-	fmt.Println(q)
-	fmt.Println(q.GetParams().(map[QueryKey]interface{})["boosting"].(Boosting).GetParams())
+	showAll(q)
+}
+func TestParseSlice(t *testing.T) {
+	s := "bool{test:abc,filter[[a,b,c],[d,e,f]]}"
+	q := NewQuery()
+	err := q.Parse(s)
+	fmt.Println(err)
+	showAll(q)
 }
 
-func BenchmarkBool(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		s := "bool[boost=1.0,minimum_should_match=3,must[term[name=kimchi,age=3]]],boosting[negative[term[test=acd]],fields=b;a]"
-		q := NewQuerySearch()
-		q.Parse(s)
+func showAll(q Querier) {
+	params := q.GetParams()
+	fmt.Println(reflect.TypeOf(q))
+	switch t := params.(type) {
+	case map[string]interface{}:
+		for key, value := range t {
+			queri, ok := value.(Querier)
+			if ok {
+				showAll(queri)
+			}
+			fmt.Println(key, value)
+		}
+	case []interface{}:
+		for _, value := range t {
+			queri, ok := value.(Querier)
+			if ok {
+				showAll(queri)
+			}
+			fmt.Println("mang", value)
+		}
 	}
-}
-func TestSliceFilter(t *testing.T) {
-	s := "bool[boost=1.0,minimum_should_match=3,must[query_search[term[name=kimchi,age=3]]],match[fields[query=test]]],boosting[negative[term[test=acd]],fields=b;a]"
-	q := NewQuerySearch()
-	q.Parse(s)
-}
-func TestSliceFilter2(t *testing.T) {
-	s := "bool[boost=1.0,minimum_should_match=3,must[query_search[term[name=kimchi,age=3],match[test[query=test]]]],match[fields[query=test]]],boosting[negative[term[test=acd]],fields=b;a]"
-	q := NewQuerySearch()
-	q.Parse(s)
-}
-
-func TestTxi(t *testing.T) {
-	i := 3
-	Txi(&i)
-	fmt.Println(i)
-}
-func Txi(i *int) {
-
-	*i = 5
 }
