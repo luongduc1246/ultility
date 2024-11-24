@@ -361,7 +361,9 @@ func (pgr Postgres) Search(ctx context.Context, reqPamrams *reqparams.Search, mo
 	cs.Parse(stm, reqPamrams)
 	exps := cs.Build()
 	fieldPreload := gormdb.NewFieldPreload()
-	fieldPreload.Parse(stm, reqPamrams.Field)
+	fields := reqparams.NewFields()
+	fields.ParseFromQuerier(reqPamrams.Fields)
+	fieldPreload.Parse(stm, fields)
 	fb := fieldPreload.BuildPreload(tx)
 	/* làm việc với extra */
 	scopes, clauses, _ := parseExtra(extra...)
@@ -388,7 +390,9 @@ func (pgr Postgres) SearchSoftDelete(ctx context.Context, reqPamrams *reqparams.
 	cs.Parse(stm, reqPamrams)
 	exps := cs.Build()
 	fieldPreload := gormdb.NewFieldPreload()
-	fieldPreload.Parse(stm, reqPamrams.Field)
+	fields := reqparams.NewFields()
+	fields.ParseFromQuerier(reqPamrams.Fields)
+	fieldPreload.Parse(stm, fields)
 	fb := fieldPreload.BuildPreload(tx)
 	/* làm việc với extra */
 	scopes, clauses, _ := parseExtra(extra...)

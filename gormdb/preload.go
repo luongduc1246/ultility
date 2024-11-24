@@ -39,7 +39,7 @@ func (f *fieldPreload) BuildPreload(tx *gorm.DB) *gorm.DB {
 	return tx
 }
 
-func (fp *fieldPreload) Parse(scm *schema.Schema, field *reqparams.Field) {
+func (fp *fieldPreload) Parse(scm *schema.Schema, field *reqparams.Fields) {
 	if field != nil {
 		fieldsByDB := scm.FieldsByDBName
 		for _, name := range field.Columns {

@@ -62,6 +62,74 @@ func (sort *Sort) Parse(s string) error {
 	}
 	return nil
 }
+
+func (sort *Sort) ParseQuerierToSort(q Querier) error {
+	params := q.GetParams()
+	switch t := params.(type) {
+	case []interface{}:
+		for _, value := range t {
+			switch v := value.(type) {
+			case string:
+				order := Order{}
+				order.Column = v
+				sort.addOrder(order)
+			case *Query:
+				pars := v.Params
+				for key, valPars := range pars {
+					switch tPars := valPars.(type) {
+					case string:
+						order := Order{}
+						order.Column = key
+						switch SortKey(tPars) {
+						case ASC:
+							order.Desc = false
+						case DESC:
+							order.Desc = true
+						default:
+							order.Desc = false
+						}
+						sort.addOrder(order)
+					case *Query:
+						if key == "options" {
+							for keyOpts, valOpts := range tPars.Params {
+								switch tValOpts := valOpts.(type) {
+								case *Query:
+									fieldOrder, ok := tValOpts.Params["order"]
+									if ok {
+										orderString, ok := fieldOrder.(string)
+										if ok {
+											order := Order{}
+											order.Column = keyOpts
+											switch SortKey(orderString) {
+											case ASC:
+												order.Desc = false
+											case DESC:
+												order.Desc = true
+											default:
+												order.Desc = false
+											}
+											sort.addOrder(order)
+										}
+
+									}
+								}
+							}
+						}
+					case *Slice:
+						sortNew := NewSort()
+						err := sortNew.ParseQuerierToSort(tPars)
+						if err == nil {
+							model := cases.Title(language.Und, cases.NoLower).String(key)
+							sort.Relatives[model] = sortNew
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func queryToSortMap(s string, sort *Sort) (err error) {
 	stack := structure.NewStack[*Sort]()
 	stack.Push(sort)
@@ -90,7 +158,7 @@ func queryToSortMap(s string, sort *Sort) (err error) {
 				indexStart = i + 1
 			}
 		case '}':
-			if s[i-1] != ']' {
+			if s[i-1] != '}' {
 				if indexStart < indexBracketOpen {
 					by := s[indexStart:indexBracketOpen]
 					column := s[indexBracketOpen+1 : i]

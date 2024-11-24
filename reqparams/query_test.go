@@ -1,29 +1,34 @@
-package fulltextsearch
+package reqparams
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 )
 
-func TestParse(t *testing.T) {
-	s := "bool{test:abc,filter[{match{query:test}},{term{value:3}}]}"
-	q := NewQuery()
-	err := q.Parse(s)
+func TestSlice(t *testing.T) {
+	s := "id,name,phone,{roles[id,name,babe]}"
+	slice := NewSlice()
+	err := slice.Parse(s)
 	fmt.Println(err)
-	showAll(q)
+	showAll(slice)
 }
-func TestParseSlice(t *testing.T) {
-	s := "bool{test:abc,filter[[a,b,c],[d,e,f]]}"
-	q := NewQuery()
-	err := q.Parse(s)
+func TestQuery(t *testing.T) {
+	s := "eq{phone:0933539091},roles[id,name,babe]"
+	query := NewQuery()
+	err := query.Parse(s)
 	fmt.Println(err)
-	showAll(q)
+	showAll(query)
+}
+
+func TestParseString(t *testing.T) {
+	s := "{abc:ab}"
+	quier, err := ParseToQuerier(s)
+	fmt.Println(quier, err)
+
 }
 
 func showAll(q Querier) {
 	params := q.GetParams()
-	fmt.Println(reflect.TypeOf(q))
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {

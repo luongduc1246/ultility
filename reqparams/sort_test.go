@@ -5,16 +5,15 @@ import (
 	"testing"
 )
 
-func TestParseQueryToSortOld(t *testing.T) {
-	s := `asc{name},desc{id},roles{asc{name}desc{id}},abc{asc{babe},desc{name}}`
-	fmt.Println(ParseQueryToSortOld(nil, s))
-}
 func TestParseQueryToSortMap(t *testing.T) {
-	s := `asc{name},desc{id},roles{asc{afda},desc{addf}}`
-	b := `roles{asc{adfds}}`
+	s := "test,{a:test},{options{title{order:desc}}},{test[abc,{ab:bc},{options{field{order:asc}}}]}"
+	query := NewSlice()
+	err := query.Parse(s)
+	fmt.Println(query)
+	fmt.Println(err)
 	sort := NewSort()
-	sort.Parse(s)
-	sort.Parse(b)
+	sort.ParseQuerierToSort(query)
 	fmt.Println(sort)
-	fmt.Println(sort.Relatives["Roles"])
+	fmt.Println(sort.Relatives["Test"])
+
 }

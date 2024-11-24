@@ -25,14 +25,14 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/snowballlanguage"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/sortmode"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/sortorder"
-	"github.com/luongduc1246/ultility/reqparams/fulltextsearch"
+	"github.com/luongduc1246/ultility/reqparams"
 )
 
 /*
 Phân tích câu query nested
 câu query có dạng nested{boost=3,...}
 */
-func ParseNestedQuery(m fulltextsearch.Querier) *types.NestedQuery {
+func ParseNestedQuery(m reqparams.Querier) *types.NestedQuery {
 	query := types.NewNestedQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -61,14 +61,14 @@ func ParseNestedQuery(m fulltextsearch.Querier) *types.NestedQuery {
 				}
 				query.IgnoreUnmapped = &v
 			case "inner_hits":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseInnerHits(field)
 				query.InnerHits = i
 			case "query":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -105,7 +105,7 @@ Phân tích câu query inner_hits
 
 	inner_hits{docvalue_fields[{...},{...}],script_fields{fields{...},message{...}}}
 */
-func ParseInnerHits(m fulltextsearch.Querier) *types.InnerHits {
+func ParseInnerHits(m reqparams.Querier) *types.InnerHits {
 	query := types.NewInnerHits()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -113,14 +113,14 @@ func ParseInnerHits(m fulltextsearch.Querier) *types.InnerHits {
 		for key, value := range t {
 			switch key {
 			case "collapse":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseCollapse(field)
 				query.Collapse = i
 			case "docvalue_fields":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -142,7 +142,7 @@ func ParseInnerHits(m fulltextsearch.Querier) *types.InnerHits {
 				}
 				query.Explain = &v
 			case "fields":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -170,7 +170,7 @@ func ParseInnerHits(m fulltextsearch.Querier) *types.InnerHits {
 				}
 				query.From = &v
 			case "highlight":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -186,7 +186,7 @@ func ParseInnerHits(m fulltextsearch.Querier) *types.InnerHits {
 				}
 				query.IgnoreUnmapped = &v
 			case "script_fields":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -212,19 +212,19 @@ func ParseInnerHits(m fulltextsearch.Querier) *types.InnerHits {
 				}
 				query.Size = &v
 			case "sort":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.Sort = ParseSliceSort(field)
 			case "_source":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.Source_ = ParseSource(field)
 			case "stored_fields":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -273,7 +273,7 @@ Phân tích _source cua inner_hits
 */
 func ParseSource(v interface{}) types.SourceConfig {
 	switch t := v.(type) {
-	case *fulltextsearch.Query:
+	case *reqparams.Query:
 		query := types.SourceFilter{}
 		m, ok := t.GetParams().(map[string]interface{})
 		if !ok {
@@ -282,7 +282,7 @@ func ParseSource(v interface{}) types.SourceConfig {
 		for key, value := range m {
 			switch key {
 			case "excludes":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -299,7 +299,7 @@ func ParseSource(v interface{}) types.SourceConfig {
 				}
 				query.Excludes = fields
 			case "includes":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -329,7 +329,7 @@ Phân tích sort cua inner_hits
 
 	sort[false,true] hoặc sort[{...},{...}]
 */
-func ParseSliceSort(m fulltextsearch.Querier) []types.SortCombinations {
+func ParseSliceSort(m reqparams.Querier) []types.SortCombinations {
 	sliceQuery := []types.SortCombinations{}
 	options, ok := m.GetParams().([]interface{})
 	if !ok {
@@ -337,8 +337,8 @@ func ParseSliceSort(m fulltextsearch.Querier) []types.SortCombinations {
 	}
 	for _, q := range options {
 		switch q.(type) {
-		case *fulltextsearch.Query:
-			v, ok := q.(fulltextsearch.Querier)
+		case *reqparams.Query:
+			v, ok := q.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -355,7 +355,7 @@ func ParseSliceSort(m fulltextsearch.Querier) []types.SortCombinations {
 		Phân tích sortOptions của sort
 	 	 sort[{...},{...}]
 */
-func ParseSortCombinations(m fulltextsearch.Querier) *types.SortOptions {
+func ParseSortCombinations(m reqparams.Querier) *types.SortOptions {
 	query := types.NewSortOptions()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -363,31 +363,31 @@ func ParseSortCombinations(m fulltextsearch.Querier) *types.SortOptions {
 		for key, value := range t {
 			switch key {
 			case "_doc":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.Doc_ = ParseScoreSort(field)
 			case "_geo_distance":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.GeoDistance_ = ParseGeoDistance(field)
 			case "_score":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.Score_ = ParseScoreSort(field)
 			case "_script":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.Script_ = ParseScriptSort(field)
 			case "options":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -403,14 +403,14 @@ func ParseSortCombinations(m fulltextsearch.Querier) *types.SortOptions {
 	 	 sort[{options{fields{...}}}]
 */
 
-func ParseOptionsSort(m fulltextsearch.Querier) map[string]types.FieldSort {
+func ParseOptionsSort(m reqparams.Querier) map[string]types.FieldSort {
 	scriptFields := make(map[string]types.FieldSort)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewFieldSort()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -442,7 +442,7 @@ func ParseOptionsSort(m fulltextsearch.Querier) map[string]types.FieldSort {
 					model.Name = v
 					query.Mode = &model
 				case "nested":
-					field, ok := value.(fulltextsearch.Querier)
+					field, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
@@ -485,7 +485,7 @@ func ParseOptionsSort(m fulltextsearch.Querier) map[string]types.FieldSort {
 		Phân tích _script của sort
 	 	 sort[{_script{...}}]
 */
-func ParseScriptSort(m fulltextsearch.Querier) *types.ScriptSort {
+func ParseScriptSort(m reqparams.Querier) *types.ScriptSort {
 	query := types.NewScriptSort()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -501,7 +501,7 @@ func ParseScriptSort(m fulltextsearch.Querier) *types.ScriptSort {
 				model.Name = v
 				query.Mode = &model
 			case "nested":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -515,7 +515,7 @@ func ParseScriptSort(m fulltextsearch.Querier) *types.ScriptSort {
 				order.Name = v
 				query.Order = &order
 			case "script":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -538,7 +538,7 @@ func ParseScriptSort(m fulltextsearch.Querier) *types.ScriptSort {
 		Phân tích ScoreSort của sort
 	 	 sort[{_doc},{_score}]
 */
-func ParseScoreSort(m fulltextsearch.Querier) *types.ScoreSort {
+func ParseScoreSort(m reqparams.Querier) *types.ScoreSort {
 	query := types.NewScoreSort()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -563,7 +563,7 @@ func ParseScoreSort(m fulltextsearch.Querier) *types.ScoreSort {
 		Phân tích GeoDistanceSort của sort
 	 	 sort[{_geo_distance}]
 */
-func ParseGeoDistance(m fulltextsearch.Querier) *types.GeoDistanceSort {
+func ParseGeoDistance(m reqparams.Querier) *types.GeoDistanceSort {
 	query := types.NewGeoDistanceSort()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -579,7 +579,7 @@ func ParseGeoDistance(m fulltextsearch.Querier) *types.GeoDistanceSort {
 				model.Name = v
 				query.DistanceType = &model
 			case "geo_distance_sort":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -603,7 +603,7 @@ func ParseGeoDistance(m fulltextsearch.Querier) *types.GeoDistanceSort {
 				model.Name = v
 				query.Mode = &model
 			case "nested":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -635,7 +635,7 @@ phân tích câu query nested cua _geo_distance
 
 	...{nested{...}}
 */
-func ParseNestedSort(m fulltextsearch.Querier) *types.NestedSortValue {
+func ParseNestedSort(m reqparams.Querier) *types.NestedSortValue {
 	query := types.NewNestedSortValue()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -643,7 +643,7 @@ func ParseNestedSort(m fulltextsearch.Querier) *types.NestedSortValue {
 		for key, value := range t {
 			switch key {
 			case "filter":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -660,7 +660,7 @@ func ParseNestedSort(m fulltextsearch.Querier) *types.NestedSortValue {
 				}
 				query.MaxChildren = &v
 			case "nested":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -682,13 +682,13 @@ Phân tích câu query geo_distance_sort
 
 	geo_distance_sort{keys[...],fields[...]}
 */
-func ParseGeoDistanceSort(m fulltextsearch.Querier) map[string][]types.GeoLocation {
+func ParseGeoDistanceSort(m reqparams.Querier) map[string][]types.GeoLocation {
 	mapSliceGeo := make(map[string][]types.GeoLocation)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
-			field, ok := value.(fulltextsearch.Querier)
+			field, ok := value.(reqparams.Querier)
 			if !ok {
 				return nil
 			}
@@ -716,7 +716,7 @@ Phân tích câu query GeoLocation geo_distance_sort
 */
 func ParseGeoLocale(v interface{}) types.GeoLocation {
 	switch t := v.(type) {
-	case *fulltextsearch.Query:
+	case *reqparams.Query:
 		m, ok := t.GetParams().(map[string]interface{})
 		if !ok {
 			return nil
@@ -743,7 +743,7 @@ func ParseGeoLocale(v interface{}) types.GeoLocation {
 			}
 		}
 		return nil
-	case *fulltextsearch.Slice:
+	case *reqparams.Slice:
 		params, ok := t.GetParams().([]interface{})
 		if !ok {
 			break
@@ -772,14 +772,14 @@ Phân tích câu query script_field
 
 	...{ignore_failure:false,script{id:3,...}}
 */
-func ParseScriptFields(m fulltextsearch.Querier) map[string]types.ScriptField {
+func ParseScriptFields(m reqparams.Querier) map[string]types.ScriptField {
 	scriptFields := make(map[string]types.ScriptField)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewScriptField()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -801,7 +801,7 @@ func ParseScriptFields(m fulltextsearch.Querier) map[string]types.ScriptField {
 					}
 					query.IgnoreFailure = &v
 				case "script":
-					field, ok := value.(fulltextsearch.Querier)
+					field, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
@@ -821,7 +821,7 @@ phân tích câu query collapse
 
 	...{collapse[...],slice_inner_hits[inner_hits[...]]]
 */
-func ParseCollapse(m fulltextsearch.Querier) *types.FieldCollapse {
+func ParseCollapse(m reqparams.Querier) *types.FieldCollapse {
 	query := types.NewFieldCollapse()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -829,14 +829,14 @@ func ParseCollapse(m fulltextsearch.Querier) *types.FieldCollapse {
 		for key, value := range t {
 			switch key {
 			case "collapse":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseCollapse(field)
 				query.Collapse = i
 			case "inner_hits":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -846,7 +846,7 @@ func ParseCollapse(m fulltextsearch.Querier) *types.FieldCollapse {
 				}
 				sliceQuery := []types.InnerHits{}
 				for _, q := range options {
-					v, ok := q.(fulltextsearch.Querier)
+					v, ok := q.(reqparams.Querier)
 					if !ok {
 						break
 					}
@@ -882,14 +882,14 @@ phân tích câu query doc_value_fields
 
 	doc_value_fields[{field:abc,format:abc},{...}]
 */
-func ParseDocValueFields(m fulltextsearch.Querier) []types.FieldAndFormat {
+func ParseDocValueFields(m reqparams.Querier) []types.FieldAndFormat {
 	sliceQuery := []types.FieldAndFormat{}
 	options, ok := m.GetParams().([]interface{})
 	if !ok {
 		return nil
 	}
 	for _, q := range options {
-		v, ok := q.(fulltextsearch.Querier)
+		v, ok := q.(reqparams.Querier)
 		if !ok {
 			return nil
 		}
@@ -904,7 +904,7 @@ phân tích câu query field_and_format
 
 	...{field=abc,format=abc}
 */
-func ParseFieldAndFormat(m fulltextsearch.Querier) *types.FieldAndFormat {
+func ParseFieldAndFormat(m reqparams.Querier) *types.FieldAndFormat {
 	query := types.NewFieldAndFormat()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -946,7 +946,7 @@ phân tích câu query highlight
 
 	highlight{options{a:b,b:c}}
 */
-func ParseHighLight(m fulltextsearch.Querier) *types.Highlight {
+func ParseHighLight(m reqparams.Querier) *types.Highlight {
 	query := types.NewHighlight()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -993,7 +993,7 @@ func ParseHighLight(m fulltextsearch.Querier) *types.Highlight {
 				b.Name = v
 				query.Encoder = &b
 			case "fields":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1037,7 +1037,7 @@ func ParseHighLight(m fulltextsearch.Querier) *types.Highlight {
 				}
 				query.HighlightFilter = &v
 			case "highlight_query":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1083,7 +1083,7 @@ func ParseHighLight(m fulltextsearch.Querier) *types.Highlight {
 				}
 				query.NumberOfFragments = &v
 			case "options":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1120,7 +1120,7 @@ func ParseHighLight(m fulltextsearch.Querier) *types.Highlight {
 				}
 				query.PhraseLimit = &v
 			case "post_tags":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 
 				if !ok {
 					break
@@ -1138,7 +1138,7 @@ func ParseHighLight(m fulltextsearch.Querier) *types.Highlight {
 				}
 				query.PostTags = fields
 			case "pre_tags":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1193,14 +1193,14 @@ Phân tích câu query hightlight_fields *
 
 	...{analyzer{}}
 */
-func ParseHighLightFields(m fulltextsearch.Querier) map[string]types.HighlightField {
+func ParseHighLightFields(m reqparams.Querier) map[string]types.HighlightField {
 	hight := make(map[string]types.HighlightField)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewHighlightField()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 
 			if !ok {
 				break
@@ -1209,12 +1209,6 @@ func ParseHighLightFields(m fulltextsearch.Querier) map[string]types.HighlightFi
 			mapOptions := imapOptions.(map[string]interface{})
 			for field, value := range mapOptions {
 				switch field {
-				case "analyzer":
-					field, ok := value.(fulltextsearch.Querier)
-					if !ok {
-						break
-					}
-					query.Analyzer = ParseHighlightAnalyzer(field)
 				case "boundary_chars":
 					s, ok := value.(string)
 					if !ok {
@@ -1298,13 +1292,13 @@ func ParseHighLightFields(m fulltextsearch.Querier) map[string]types.HighlightFi
 					}
 					query.HighlightFilter = &v
 				case "highlight_query":
-					field, ok := value.(fulltextsearch.Querier)
+					field, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
 					query.HighlightQuery = ParseQueryToSearch(field)
 				case "matched_fields":
-					field, ok := value.(fulltextsearch.Querier)
+					field, ok := value.(reqparams.Querier)
 
 					if !ok {
 						break
@@ -1362,7 +1356,7 @@ func ParseHighLightFields(m fulltextsearch.Querier) map[string]types.HighlightFi
 					}
 					query.NumberOfFragments = &v
 				case "options":
-					field, ok := value.(fulltextsearch.Querier)
+					field, ok := value.(reqparams.Querier)
 
 					if !ok {
 						break
@@ -1401,7 +1395,7 @@ func ParseHighLightFields(m fulltextsearch.Querier) map[string]types.HighlightFi
 					}
 					query.PhraseLimit = &v
 				case "post_tags":
-					field, ok := value.(fulltextsearch.Querier)
+					field, ok := value.(reqparams.Querier)
 
 					if !ok {
 						break
@@ -1419,7 +1413,7 @@ func ParseHighLightFields(m fulltextsearch.Querier) map[string]types.HighlightFi
 					}
 					query.PostTags = fields
 				case "pre_tags":
-					field, ok := value.(fulltextsearch.Querier)
+					field, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
@@ -1494,105 +1488,105 @@ Phân tích analyzer của highlight
 		- snow_ball
 		- dutch
 */
-func ParseHighlightAnalyzer(m fulltextsearch.Querier) types.Analyzer {
+func ParseHighlightAnalyzer(m reqparams.Querier) types.Analyzer {
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
 			case "custom":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseCustomAnalyzer(field)
 				return i
 			case "finger_print":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseFingerPrintAnalyzer(field)
 				return i
 			case "keyword":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseKeywordAnalyzer(field)
 				return i
 			case "language":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseLanguageAnalyzer(field)
 				return i
 			case "nori":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseNoriAnalyzer(field)
 				return i
 			case "pattern":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParsePatternAnalyzer(field)
 				return i
 			case "simple":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseSimpleAnalyzer(field)
 				return i
 			case "standard":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseStandardAnalyzer(field)
 				return i
 			case "stop":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseStopAnalyzer(field)
 				return i
 			case "white_space":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseWhiteSpaceAnalyzer(field)
 				return i
 			case "icu":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseIcuAnalyzer(field)
 				return i
 			case "kuromoji":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseKuromojiAnalyzer(field)
 				return i
 			case "snow":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseSnowballAnalyzer(field)
 				return i
 			case "dutch":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1609,7 +1603,7 @@ phân tích câu query custom của analyzer
 
 	custom{char_filter[]...}
 */
-func ParseCustomAnalyzer(m fulltextsearch.Querier) *types.CustomAnalyzer {
+func ParseCustomAnalyzer(m reqparams.Querier) *types.CustomAnalyzer {
 	query := types.NewCustomAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1617,7 +1611,7 @@ func ParseCustomAnalyzer(m fulltextsearch.Querier) *types.CustomAnalyzer {
 		for key, value := range t {
 			switch key {
 			case "char_filter":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 
 				if !ok {
 					break
@@ -1635,7 +1629,7 @@ func ParseCustomAnalyzer(m fulltextsearch.Querier) *types.CustomAnalyzer {
 				}
 				query.CharFilter = fields
 			case "filter":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 
 				if !ok {
 					break
@@ -1697,7 +1691,7 @@ phân tích câu query stop cua analyzer
 
 	stop{...}
 */
-func ParseStopAnalyzer(m fulltextsearch.Querier) *types.StopAnalyzer {
+func ParseStopAnalyzer(m reqparams.Querier) *types.StopAnalyzer {
 	query := types.NewStopAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1705,7 +1699,7 @@ func ParseStopAnalyzer(m fulltextsearch.Querier) *types.StopAnalyzer {
 		for key, value := range t {
 			switch key {
 			case "stopwords":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1753,7 +1747,7 @@ phân tích câu query finger_print cua analyzer
 
 	finger_print{...}
 */
-func ParseFingerPrintAnalyzer(m fulltextsearch.Querier) *types.FingerprintAnalyzer {
+func ParseFingerPrintAnalyzer(m reqparams.Querier) *types.FingerprintAnalyzer {
 	query := types.NewFingerprintAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1788,7 +1782,7 @@ func ParseFingerPrintAnalyzer(m fulltextsearch.Querier) *types.FingerprintAnalyz
 				v := s
 				query.Separator = v
 			case "stopwords":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 
 				if !ok {
 					break
@@ -1837,7 +1831,7 @@ phân tích câu query language cua analyzer
 
 	language{...}
 */
-func ParseLanguageAnalyzer(m fulltextsearch.Querier) *types.LanguageAnalyzer {
+func ParseLanguageAnalyzer(m reqparams.Querier) *types.LanguageAnalyzer {
 	query := types.NewLanguageAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1854,7 +1848,7 @@ func ParseLanguageAnalyzer(m fulltextsearch.Querier) *types.LanguageAnalyzer {
 				lang.Name = v
 				query.Language = lang
 			case "stem_exclusion":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 
 				if !ok {
 					break
@@ -1872,7 +1866,7 @@ func ParseLanguageAnalyzer(m fulltextsearch.Querier) *types.LanguageAnalyzer {
 				}
 				query.Stopwords = fields
 			case "stopwords":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 
 				if !ok {
 					break
@@ -1921,7 +1915,7 @@ phân tích câu query snowball cua analyzer
 
 	snowball{...}
 */
-func ParseSnowballAnalyzer(m fulltextsearch.Querier) *types.SnowballAnalyzer {
+func ParseSnowballAnalyzer(m reqparams.Querier) *types.SnowballAnalyzer {
 	query := types.NewSnowballAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1938,7 +1932,7 @@ func ParseSnowballAnalyzer(m fulltextsearch.Querier) *types.SnowballAnalyzer {
 				lang.Name = v
 				query.Language = lang
 			case "stem_exclusion":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 
 				if !ok {
 					break
@@ -1956,7 +1950,7 @@ func ParseSnowballAnalyzer(m fulltextsearch.Querier) *types.SnowballAnalyzer {
 				}
 				query.Stopwords = fields
 			case "stopwords":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 
 				if !ok {
 					break
@@ -1999,7 +1993,7 @@ phân tích câu query dutch cua analyzer
 
 	dutch{...}
 */
-func ParseDutchAnalyzer(m fulltextsearch.Querier) *types.DutchAnalyzer {
+func ParseDutchAnalyzer(m reqparams.Querier) *types.DutchAnalyzer {
 	query := types.NewDutchAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -2007,7 +2001,7 @@ func ParseDutchAnalyzer(m fulltextsearch.Querier) *types.DutchAnalyzer {
 		for key, value := range t {
 			switch key {
 			case "stopwords":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -2042,7 +2036,7 @@ phân tích câu query pattern cua analyzer
 
 	pattern{...}
 */
-func ParsePatternAnalyzer(m fulltextsearch.Querier) *types.PatternAnalyzer {
+func ParsePatternAnalyzer(m reqparams.Querier) *types.PatternAnalyzer {
 	query := types.NewPatternAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -2067,7 +2061,7 @@ func ParsePatternAnalyzer(m fulltextsearch.Querier) *types.PatternAnalyzer {
 				}
 				query.Lowercase = &v
 			case "stopwords":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 
 				if !ok {
 					break
@@ -2117,7 +2111,7 @@ phân tích câu query standar cua analyzer
 
 	standar{...}
 */
-func ParseStandardAnalyzer(m fulltextsearch.Querier) *types.StandardAnalyzer {
+func ParseStandardAnalyzer(m reqparams.Querier) *types.StandardAnalyzer {
 	query := types.NewStandardAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -2135,7 +2129,7 @@ func ParseStandardAnalyzer(m fulltextsearch.Querier) *types.StandardAnalyzer {
 				}
 				query.MaxTokenLength = &v
 			case "stopwords":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 
 				if !ok {
 					break
@@ -2170,7 +2164,7 @@ phân tích câu query nori cua analyzer
 
 	nori{...}
 */
-func ParseNoriAnalyzer(m fulltextsearch.Querier) *types.NoriAnalyzer {
+func ParseNoriAnalyzer(m reqparams.Querier) *types.NoriAnalyzer {
 	query := types.NewNoriAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -2187,7 +2181,7 @@ func ParseNoriAnalyzer(m fulltextsearch.Querier) *types.NoriAnalyzer {
 				decom.Name = v
 				query.DecompoundMode = &decom
 			case "stoptags":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 
 				if !ok {
 					break
@@ -2236,7 +2230,7 @@ phân tích câu query white_space cua analyzer
 
 	white_space{...}
 */
-func ParseWhiteSpaceAnalyzer(m fulltextsearch.Querier) *types.WhitespaceAnalyzer {
+func ParseWhiteSpaceAnalyzer(m reqparams.Querier) *types.WhitespaceAnalyzer {
 	query := types.NewWhitespaceAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -2268,7 +2262,7 @@ phân tích câu query icu cua analyzer
 
 	icu{...}
 */
-func ParseIcuAnalyzer(m fulltextsearch.Querier) *types.IcuAnalyzer {
+func ParseIcuAnalyzer(m reqparams.Querier) *types.IcuAnalyzer {
 	query := types.NewIcuAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -2310,7 +2304,7 @@ func ParseIcuAnalyzer(m fulltextsearch.Querier) *types.IcuAnalyzer {
 phân tích câu query kuromoji analyzer
 query có dạng icu_analyzer[...]
 */
-func ParseKuromojiAnalyzer(m fulltextsearch.Querier) *types.KuromojiAnalyzer {
+func ParseKuromojiAnalyzer(m reqparams.Querier) *types.KuromojiAnalyzer {
 	query := types.NewKuromojiAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -2351,7 +2345,7 @@ phân tích câu query keyword cua analyzer
 
 	keyword{...}
 */
-func ParseKeywordAnalyzer(m fulltextsearch.Querier) *types.KeywordAnalyzer {
+func ParseKeywordAnalyzer(m reqparams.Querier) *types.KeywordAnalyzer {
 	query := types.NewKeywordAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -2383,7 +2377,7 @@ phân tích câu query simple cua analyzer
 
 	simple{...}
 */
-func ParseSimpleAnalyzer(m fulltextsearch.Querier) *types.SimpleAnalyzer {
+func ParseSimpleAnalyzer(m reqparams.Querier) *types.SimpleAnalyzer {
 	query := types.NewSimpleAnalyzer()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -2414,7 +2408,7 @@ func ParseSimpleAnalyzer(m fulltextsearch.Querier) *types.SimpleAnalyzer {
 Phân tích câu query has_child
 câu query có dạng has_child{boost=3,...}
 */
-func ParseHasChildQuery(m fulltextsearch.Querier) *types.HasChildQuery {
+func ParseHasChildQuery(m reqparams.Querier) *types.HasChildQuery {
 	query := types.NewHasChildQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -2447,7 +2441,7 @@ func ParseHasChildQuery(m fulltextsearch.Querier) *types.HasChildQuery {
 				}
 				query.IgnoreUnmapped = &v
 			case "inner_hits":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -2480,7 +2474,7 @@ func ParseHasChildQuery(m fulltextsearch.Querier) *types.HasChildQuery {
 				}
 				query.MinChildren = &v
 			case "query":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -2517,7 +2511,7 @@ Phân tích câu query has_child
 
 	has_child{boost=3,...}
 */
-func ParseHasParentQuery(m fulltextsearch.Querier) *types.HasParentQuery {
+func ParseHasParentQuery(m reqparams.Querier) *types.HasParentQuery {
 	query := types.NewHasParentQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -2547,7 +2541,7 @@ func ParseHasParentQuery(m fulltextsearch.Querier) *types.HasParentQuery {
 				}
 				query.IgnoreUnmapped = &v
 			case "inner_hits":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -2555,7 +2549,7 @@ func ParseHasParentQuery(m fulltextsearch.Querier) *types.HasParentQuery {
 				query.InnerHits = i
 
 			case "query":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -2588,7 +2582,7 @@ func ParseHasParentQuery(m fulltextsearch.Querier) *types.HasParentQuery {
 	}
 	return query
 }
-func ParseParentIdQuery(m fulltextsearch.Querier) *types.ParentIdQuery {
+func ParseParentIdQuery(m reqparams.Querier) *types.ParentIdQuery {
 	query := types.NewParentIdQuery()
 	params := m.GetParams()
 	switch t := params.(type) {

@@ -6,7 +6,7 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/rangerelation"
-	"github.com/luongduc1246/ultility/reqparams/fulltextsearch"
+	"github.com/luongduc1246/ultility/reqparams"
 )
 
 /*
@@ -14,7 +14,7 @@ Phân tích câu query exists
 
 	exists{boost:3,...}
 */
-func ParseExistsQuery(m fulltextsearch.Querier) *types.ExistsQuery {
+func ParseExistsQuery(m reqparams.Querier) *types.ExistsQuery {
 	query := types.NewExistsQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -55,14 +55,14 @@ Phân tích câu query fuzzy
 
 	fuzzy{anylyzer:true,...}
 */
-func ParseFuzzyQuery(m fulltextsearch.Querier) map[string]types.FuzzyQuery {
+func ParseFuzzyQuery(m reqparams.Querier) map[string]types.FuzzyQuery {
 	fuzzyQuery := make(map[string]types.FuzzyQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewFuzzyQuery()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -150,7 +150,7 @@ Phân tích câu query ids
 
 	ids{boost:3,...}
 */
-func ParseIdsQuery(m fulltextsearch.Querier) *types.IdsQuery {
+func ParseIdsQuery(m reqparams.Querier) *types.IdsQuery {
 	query := types.NewIdsQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -175,7 +175,7 @@ func ParseIdsQuery(m fulltextsearch.Querier) *types.IdsQuery {
 				}
 				query.QueryName_ = &v
 			case "values":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -203,14 +203,14 @@ Phân tích câu query prefix
 
 	prefix{field{anylyzer:true,...}}
 */
-func ParsePrefixQuery(m fulltextsearch.Querier) map[string]types.PrefixQuery {
+func ParsePrefixQuery(m reqparams.Querier) map[string]types.PrefixQuery {
 	mapQuery := make(map[string]types.PrefixQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewPrefixQuery()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -278,14 +278,14 @@ Phân tích câu query range
 
 	range{fields{type_of_range}}
 */
-func ParseRangeQuery(m fulltextsearch.Querier) map[string]types.RangeQuery {
+func ParseRangeQuery(m reqparams.Querier) map[string]types.RangeQuery {
 	mapQuery := make(map[string]types.RangeQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			var query types.RangeQuery
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -297,26 +297,26 @@ func ParseRangeQuery(m fulltextsearch.Querier) map[string]types.RangeQuery {
 			for field, value := range mapOptions {
 				switch field {
 				case "untyped":
-					field, ok := value.(fulltextsearch.Querier)
+					field, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
 					query = ParseUntypedRangeQuery(field)
 				case "date":
-					field, ok := value.(fulltextsearch.Querier)
+					field, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
 					query = ParseDateRangeQuery(field)
 				case "number":
-					field, ok := value.(fulltextsearch.Querier)
+					field, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
 					query = ParseNumberRangeQuery(field)
 
 				case "term":
-					field, ok := value.(fulltextsearch.Querier)
+					field, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
@@ -337,7 +337,7 @@ Phân tích câu query untyped cua range
 
 	{untyped{...}}
 */
-func ParseUntypedRangeQuery(m fulltextsearch.Querier) types.UntypedRangeQuery {
+func ParseUntypedRangeQuery(m reqparams.Querier) types.UntypedRangeQuery {
 	query := types.UntypedRangeQuery{}
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -430,7 +430,7 @@ Phân tích câu query date cua range
 
 	{date{...}}
 */
-func ParseDateRangeQuery(m fulltextsearch.Querier) types.DateRangeQuery {
+func ParseDateRangeQuery(m reqparams.Querier) types.DateRangeQuery {
 	query := types.DateRangeQuery{}
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -521,7 +521,7 @@ Phân tích câu query number cua range
 
 	{number{...}}
 */
-func ParseNumberRangeQuery(m fulltextsearch.Querier) types.NumberRangeQuery {
+func ParseNumberRangeQuery(m reqparams.Querier) types.NumberRangeQuery {
 	query := types.NumberRangeQuery{}
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -630,7 +630,7 @@ Phân tích câu query term cua range
 
 	{term{...}}
 */
-func ParseTermRangeQuery(m fulltextsearch.Querier) types.TermRangeQuery {
+func ParseTermRangeQuery(m reqparams.Querier) types.TermRangeQuery {
 	query := types.TermRangeQuery{}
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -709,14 +709,14 @@ Phân tích câu query regexp
 
 	regexp{field{anylyzer:true,...}}
 */
-func ParseRegexpQuery(m fulltextsearch.Querier) map[string]types.RegexpQuery {
+func ParseRegexpQuery(m reqparams.Querier) map[string]types.RegexpQuery {
 	mapQuery := make(map[string]types.RegexpQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewRegexpQuery()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -800,14 +800,14 @@ Phân tích câu query term
 
 	term{field{boost:3,...}}
 */
-func ParseTermQuery(m fulltextsearch.Querier) map[string]types.TermQuery {
+func ParseTermQuery(m reqparams.Querier) map[string]types.TermQuery {
 	mapQuery := make(map[string]types.TermQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewTermQuery()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -869,7 +869,7 @@ Phân tích câu query terms
 
 	terms{boost:3,...}
 */
-func ParseTermsQuery(m fulltextsearch.Querier) *types.TermsQuery {
+func ParseTermsQuery(m reqparams.Querier) *types.TermsQuery {
 	query := types.NewTermsQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -894,7 +894,7 @@ func ParseTermsQuery(m fulltextsearch.Querier) *types.TermsQuery {
 				}
 				query.QueryName_ = &v
 			case "terms_query":
-				quies, ok := value.(fulltextsearch.Querier)
+				quies, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -910,16 +910,16 @@ Phân tích câu query terms_query
 
 	term{field{terms_query{id:string,index:string,path:string,routing:string}}} hoặc term{field{terms_query[string,int64,json.RawMessage...]}}
 */
-func ParseMapTermsQuery(m fulltextsearch.Querier) map[string]types.TermsQueryField {
+func ParseMapTermsQuery(m reqparams.Querier) map[string]types.TermsQueryField {
 	mapQuery := make(map[string]types.TermsQueryField)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			switch quies := value.(type) {
-			case *fulltextsearch.Query:
+			case *reqparams.Query:
 				mapQuery[key] = ParseFieldLookup(quies)
-			case *fulltextsearch.Slice:
+			case *reqparams.Slice:
 				fieldValues := []types.FieldValue{}
 				pars, ok := quies.GetParams().([]interface{})
 				if !ok {
@@ -943,7 +943,7 @@ Phân tích câu query FieldLookup của TermsQueryField
 
 	...{id:string,index:string,path:string,routing:string}
 */
-func ParseFieldLookup(m fulltextsearch.Querier) types.FieldLookup {
+func ParseFieldLookup(m reqparams.Querier) types.FieldLookup {
 	query := types.NewFieldLookup()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -985,14 +985,14 @@ Phân tích câu query terms_set
 
 	terms_set{field{boost:3,...}}
 */
-func ParseTermsSetQuery(m fulltextsearch.Querier) map[string]types.TermsSetQuery {
+func ParseTermsSetQuery(m reqparams.Querier) map[string]types.TermsSetQuery {
 	mapQuery := make(map[string]types.TermsSetQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewTermsSetQuery()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -1022,7 +1022,7 @@ func ParseTermsSetQuery(m fulltextsearch.Querier) map[string]types.TermsSetQuery
 					}
 					query.MinimumShouldMatchField = &v
 				case "minimum_should_match_script":
-					quies, ok := value.(fulltextsearch.Querier)
+					quies, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
@@ -1035,7 +1035,7 @@ func ParseTermsSetQuery(m fulltextsearch.Querier) map[string]types.TermsSetQuery
 					query.QueryName_ = &v
 
 				case "terms":
-					field, ok := value.(fulltextsearch.Querier)
+					field, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
@@ -1067,14 +1067,14 @@ Phân tích câu query wildcard
 
 	wildcard{field{boost:3,...}}
 */
-func ParseWildcardQuery(m fulltextsearch.Querier) map[string]types.WildcardQuery {
+func ParseWildcardQuery(m reqparams.Querier) map[string]types.WildcardQuery {
 	mapQuery := make(map[string]types.WildcardQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewWildcardQuery()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}

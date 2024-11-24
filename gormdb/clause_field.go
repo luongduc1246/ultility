@@ -19,7 +19,7 @@ func newFieldSelect() *fieldSelect {
 	}
 }
 
-func (s *fieldSelect) parse(scm *schema.Schema, field *reqparams.Field) {
+func (s *fieldSelect) parse(scm *schema.Schema, field *reqparams.Fields) {
 	fieldsByDB := scm.FieldsByDBName
 	for _, name := range field.Columns {
 		if _, ok := fieldsByDB[name]; ok {

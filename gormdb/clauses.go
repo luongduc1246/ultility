@@ -29,7 +29,9 @@ func NewClauseSearch() *ClauseSearch {
 func (cs *ClauseSearch) Parse(scm *schema.Schema, search *reqparams.Search) {
 	if search.Filter != nil {
 		fw := newFilterWhere()
-		fw.parse(scm, search.Filter)
+		filter := reqparams.NewFilter()
+		filter.ParseFromQuerier(search.Filter)
+		fw.parse(scm, filter)
 		if len(fw.Exps) > 0 {
 			cs.Where = &clause.Where{
 				Exprs: fw.Exps,
@@ -43,7 +45,9 @@ func (cs *ClauseSearch) Parse(scm *schema.Schema, search *reqparams.Search) {
 	}
 	if search.Sort != nil {
 		sb := newSortBy()
-		sb.parse(scm, search.Sort)
+		sort := reqparams.NewSort()
+		sort.ParseQuerierToSort(search.Sort)
+		sb.parse(scm, sort)
 		for k, v := range sb.Relatives {
 			if _, ok := cs.Joins[k]; ok {
 				sb.Columns = append(sb.Columns, v...)

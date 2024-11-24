@@ -15,11 +15,8 @@ package reqparams
 
 import (
 	"fmt"
-	"net/url"
-	"strings"
 
 	"github.com/luongduc1246/ultility/arrays"
-	"github.com/luongduc1246/ultility/structure"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -89,177 +86,6 @@ type Likes struct {
 }
 type Equals Likes
 
-func expFromString(filterKey, column, value string) Exp {
-	var exp Exp
-	switch FilterKey(filterKey) {
-	case EQ:
-		queryValue, err := (url.QueryUnescape(value))
-		if err != nil {
-			return exp
-		}
-		exp = Eq{
-			Column: column,
-			Value:  queryValue,
-		}
-	case NEQ:
-		queryValue, err := (url.QueryUnescape(value))
-		if err != nil {
-			return exp
-		}
-		exp = Neq{
-			Column: column,
-			Value:  queryValue,
-		}
-	case LT:
-		queryValue, err := (url.QueryUnescape(value))
-		if err != nil {
-			return exp
-		}
-		exp = Lt{
-			Column: column,
-			Value:  queryValue,
-		}
-	case LTE:
-		queryValue, err := (url.QueryUnescape(value))
-		if err != nil {
-			return exp
-		}
-		exp = Lte{
-			Column: column,
-			Value:  queryValue,
-		}
-	case GT:
-		queryValue, err := (url.QueryUnescape(value))
-		if err != nil {
-			return exp
-		}
-		exp = Gt{
-			Column: column,
-			Value:  queryValue,
-		}
-	case GTE:
-		queryValue, err := (url.QueryUnescape(value))
-		if err != nil {
-			return exp
-		}
-		exp = Gte{
-			Column: column,
-			Value:  queryValue,
-		}
-	case LIKE:
-		queryValue, err := (url.QueryUnescape(value))
-		if err != nil {
-			return exp
-		}
-		exp = Like{
-			Column: column,
-			Value:  queryValue,
-		}
-	case IN:
-		in := []interface{}{}
-		vals := strings.Split(value, ";")
-		if len(vals) == 0 {
-			return exp
-		}
-		for _, v := range vals {
-			queryVal, err := (url.QueryUnescape(v))
-			if err == nil {
-				in = append(in, queryVal)
-			}
-		}
-		exp = In{
-			Column: column,
-			Values: in,
-		}
-	// Làm việc với Json
-	case EXTRACT:
-		queryValue, err := (url.QueryUnescape(value))
-		if err != nil {
-			return exp
-		}
-		exp = Extract{
-			Column: column,
-			Value:  queryValue,
-		}
-	case CONTAINS:
-		queryValue, err := (url.QueryUnescape(value))
-		if err != nil {
-			return exp
-		}
-		exp = Contains{
-			Column: column,
-			Value:  queryValue,
-		}
-	case HASKEY:
-		has := []string{}
-		vals := strings.Split(value, ";")
-		if len(vals) == 0 {
-			return exp
-		}
-		for _, v := range vals {
-			queryVal, err := (url.QueryUnescape(v))
-			if err == nil {
-				has = append(has, queryVal)
-			}
-		}
-		exp = Haskey{
-			Column: column,
-			Values: has,
-		}
-	case LIKES: /* query có dạng likes[name]=abc;abc:test */
-		keyValue := strings.Split(value, ":")
-		if len(keyValue) != 2 {
-			return exp
-		}
-		keyLikes := []string{}
-		keys := strings.Split(keyValue[0], ";")
-		if len(keys) == 0 {
-			return exp
-		}
-		for _, v := range keys {
-			queryVal, err := (url.QueryUnescape(v))
-			if err == nil {
-				keyLikes = append(keyLikes, queryVal)
-			}
-		}
-		queryValue, err := (url.QueryUnescape(keyValue[1]))
-		if err != nil {
-			return exp
-		}
-		exp = Likes{
-			Column: column,
-			Keys:   keyLikes,
-			Value:  queryValue,
-		}
-	case EQUALS:
-		keyValue := strings.Split(value, ":")
-		if len(keyValue) != 2 {
-			return exp
-		}
-		keyEquals := []string{}
-		keys := strings.Split(keyValue[0], ";")
-		if len(keys) == 0 {
-			return exp
-		}
-		for _, v := range keys {
-			queryVal, err := (url.QueryUnescape(v))
-			if err == nil {
-				keyEquals = append(keyEquals, queryVal)
-			}
-		}
-		queryValue, err := (url.QueryUnescape(keyValue[1]))
-		if err != nil {
-			return exp
-		}
-		exp = Equals{
-			Column: column,
-			Keys:   keyEquals,
-			Value:  queryValue,
-		}
-	}
-	return exp
-}
-
 type Filter struct {
 	Exps      []Exp // mảng các compare
 	Relatives map[string]IFilter
@@ -300,16 +126,16 @@ type IFilter interface {
 }
 
 /*
-#Phân tích từ Exprer sang Filter
+#Phân tích từ Querier sang Filter
 */
-func (f *Filter) ParseFromExpr(er Exprer) error {
+func (f *Filter) ParseFromQuerier(er Querier) error {
 	params := er.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			switch FilterKey(key) {
 			case EQ:
-				exp, ok := value.(*Expr)
+				exp, ok := value.(*Query)
 				if ok {
 					pars, ok := exp.GetParams().(map[string]interface{})
 					if ok {
@@ -322,7 +148,7 @@ func (f *Filter) ParseFromExpr(er Exprer) error {
 					}
 				}
 			case NEQ:
-				exp, ok := value.(*Expr)
+				exp, ok := value.(*Query)
 				if ok {
 					pars, ok := exp.GetParams().(map[string]interface{})
 					if ok {
@@ -335,7 +161,7 @@ func (f *Filter) ParseFromExpr(er Exprer) error {
 					}
 				}
 			case LT:
-				exp, ok := value.(*Expr)
+				exp, ok := value.(*Query)
 				if ok {
 					pars, ok := exp.GetParams().(map[string]interface{})
 					if ok {
@@ -348,7 +174,7 @@ func (f *Filter) ParseFromExpr(er Exprer) error {
 					}
 				}
 			case LTE:
-				exp, ok := value.(*Expr)
+				exp, ok := value.(*Query)
 				if ok {
 					pars, ok := exp.GetParams().(map[string]interface{})
 					if ok {
@@ -361,7 +187,7 @@ func (f *Filter) ParseFromExpr(er Exprer) error {
 					}
 				}
 			case GT:
-				exp, ok := value.(*Expr)
+				exp, ok := value.(*Query)
 				if ok {
 					pars, ok := exp.GetParams().(map[string]interface{})
 					if ok {
@@ -374,7 +200,7 @@ func (f *Filter) ParseFromExpr(er Exprer) error {
 					}
 				}
 			case GTE:
-				exp, ok := value.(*Expr)
+				exp, ok := value.(*Query)
 				if ok {
 					pars, ok := exp.GetParams().(map[string]interface{})
 					if ok {
@@ -387,7 +213,7 @@ func (f *Filter) ParseFromExpr(er Exprer) error {
 					}
 				}
 			case LIKE:
-				exp, ok := value.(*Expr)
+				exp, ok := value.(*Query)
 				if ok {
 					pars, ok := exp.GetParams().(map[string]interface{})
 					if ok {
@@ -401,7 +227,7 @@ func (f *Filter) ParseFromExpr(er Exprer) error {
 				}
 			case IN:
 				/* in{column[value,value]} */
-				exp, ok := value.(*Expr)
+				exp, ok := value.(*Query)
 				if ok {
 					pars, ok := exp.GetParams().(map[string]interface{})
 					if ok {
@@ -421,7 +247,7 @@ func (f *Filter) ParseFromExpr(er Exprer) error {
 					}
 				}
 			case EXTRACT:
-				exp, ok := value.(*Expr)
+				exp, ok := value.(*Query)
 				if ok {
 					pars, ok := exp.GetParams().(map[string]interface{})
 					if ok {
@@ -438,7 +264,7 @@ func (f *Filter) ParseFromExpr(er Exprer) error {
 					}
 				}
 			case CONTAINS:
-				exp, ok := value.(*Expr)
+				exp, ok := value.(*Query)
 				if ok {
 					pars, ok := exp.GetParams().(map[string]interface{})
 					if ok {
@@ -456,7 +282,7 @@ func (f *Filter) ParseFromExpr(er Exprer) error {
 				}
 			case HASKEY:
 				/* haskey{column[value,value]} */
-				exp, ok := value.(*Expr)
+				exp, ok := value.(*Query)
 				if ok {
 					pars, ok := exp.GetParams().(map[string]interface{})
 					if ok {
@@ -478,12 +304,12 @@ func (f *Filter) ParseFromExpr(er Exprer) error {
 				}
 			case LIKES:
 				/* likes{column{value[path,path]}} */
-				exp, ok := value.(*Expr)
+				exp, ok := value.(*Query)
 				if ok {
 					pars, ok := exp.GetParams().(map[string]interface{})
 					if ok {
 						for k, v := range pars {
-							pare, ok := v.(*Expr)
+							pare, ok := v.(*Query)
 							if ok {
 								parv, ok := pare.GetParams().(map[string]interface{})
 								if ok {
@@ -510,423 +336,13 @@ func (f *Filter) ParseFromExpr(er Exprer) error {
 			default:
 				/* relative{...expr} */
 				fmt.Println(value)
-				expr, ok := value.(*Expr)
+				expr, ok := value.(*Query)
 				if ok {
 					filter := NewFilter()
-					err := filter.ParseFromExpr(expr)
+					err := filter.ParseFromQuerier(expr)
 					if err == nil {
 						keyRelative := cases.Title(language.Und, cases.NoLower).String(key)
 						f.addRelative(keyRelative, filter)
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
-// func (f *Filter) Parse(s string) error {
-// 	err := queryToFilter(s, f)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-// func queryToFilter(s string, fields *Filter) (err error) {
-// 	stack := structure.NewStack[IFilter]()
-// 	stack.Push(fields)
-// 	defer stack.Clear()
-// 	var indexStart, indexBracketOpen, indexBracketClose, indexValue int
-// 	for i, v := range s {
-// 		switch v {
-// 		case '[':
-// 			indexBracketOpen = i
-// 			switch FilterKey(s[indexStart:i]) {
-// 			case EQ, NEQ, LT, LTE, GT, GTE, LIKE, IN, EXTRACT, HASKEY, CONTAINS, LIKES, EQUALS:
-// 			case NOT:
-// 				indexStart = i + 1
-// 				var not = Not{NewFilter()}
-// 				stack.Push(not)
-// 			case OR:
-// 				indexStart = i + 1
-// 				var or = Or{NewFilter()}
-// 				stack.Push(or)
-// 			case AND:
-// 				indexStart = i + 1
-// 				var and = And{NewFilter()}
-// 				stack.Push(and)
-// 			default:
-// 				/* làm việc với các quan hệ */
-// 				model := cases.Title(language.Und, cases.NoLower).String(s[indexStart:i])
-// 				peek, err := stack.Peek()
-// 				if err != nil {
-// 					return err
-// 				}
-// 				if filter, ok := peek.GetRelatives()[model]; ok {
-// 					stack.Push(filter)
-// 				} else {
-// 					filter = NewFilter()
-// 					peek.addRelative(model, filter)
-// 					stack.Push(filter)
-// 				}
-// 				indexStart = i + 1
-// 			}
-// 		case ']':
-// 			if i+1 < len(s) {
-// 				if s[i+1] == '=' {
-// 					indexBracketClose = i
-// 					indexValue = i + 2 /* vị trí bắt đầu lấy giá trị value */
-// 				} else {
-// 					/* kiểm tra xem sau ] */
-// 					if s[i-1] != ']' {
-// 						if indexStart < indexBracketOpen && indexValue < i && indexBracketOpen < indexBracketClose {
-// 							filterKey := s[indexStart:indexBracketOpen]         // get name to filterKey
-// 							value := s[indexValue:i]                            // get value for Exp
-// 							column := s[indexBracketOpen+1 : indexBracketClose] // get column
-// 							exp := expFromString(filterKey, column, value)
-
-// 							indexStart = i + 1
-// 							peek, err := stack.Peek()
-// 							if err != nil {
-// 								return err
-// 							}
-// 							peek.addExp(exp)
-// 							pop, err := stack.Pop()
-// 							if err != nil {
-// 								return err
-// 							}
-// 							peek, err = stack.Peek()
-// 							if err != nil {
-// 								return err
-// 							}
-// 							peek.addExp(pop)
-// 						} else {
-// 							return ErrParseFilterQuery{
-// 								Index: fmt.Sprint(i),
-// 								Char:  string(v),
-// 							}
-// 						}
-// 					} else {
-// 						/* trường hợp sau ] là ] */
-// 						indexStart = i + 2
-// 						pop, err := stack.Pop()
-// 						if err != nil {
-// 							return err
-// 						}
-// 						peek, err := stack.Peek()
-// 						if err != nil {
-// 							return err
-// 						}
-// 						peek.addExp(pop)
-// 					}
-// 				}
-// 			} else {
-// 				if s[i-1] != ']' {
-// 					if indexStart < indexBracketOpen && indexValue < i && indexBracketOpen < indexBracketClose {
-// 						filterKey := s[indexStart:indexBracketOpen]         // get name to filterKey
-// 						value := s[indexValue:i]                            // get value for Exp
-// 						column := s[indexBracketOpen+1 : indexBracketClose] // get column
-// 						exp := expFromString(filterKey, column, value)
-// 						indexStart = i + 1
-// 						peek, err := stack.Peek()
-// 						if err != nil {
-// 							return err
-// 						}
-// 						peek.addExp(exp)
-// 						pop, err := stack.Pop()
-// 						if err != nil {
-// 							return err
-// 						}
-// 						peek, err = stack.Peek()
-// 						if err != nil {
-// 							return err
-// 						}
-// 						peek.addExp(pop)
-// 					} else {
-// 						return ErrParseFilterQuery{
-// 							Index: fmt.Sprint(i),
-// 							Char:  string(v),
-// 						}
-// 					}
-// 				} else {
-// 					pop, err := stack.Pop()
-// 					if err != nil {
-// 						return err
-// 					}
-// 					peek, err := stack.Peek()
-// 					if err != nil {
-// 						return err
-// 					}
-// 					peek.addExp(pop)
-// 				}
-// 			}
-// 		case ',':
-// 			if s[i-1] != ']' {
-// 				if indexStart < indexBracketOpen && indexValue < i && indexBracketOpen < indexBracketClose {
-// 					filterKey := s[indexStart:indexBracketOpen]         // get name to filterKey
-// 					value := s[indexValue:i]                            // get value for Exp
-// 					column := s[indexBracketOpen+1 : indexBracketClose] // get column
-// 					indexStart = i + 1
-// 					exp := expFromString(filterKey, column, value)
-// 					peek, err := stack.Peek()
-// 					if err != nil {
-// 						return err
-// 					}
-// 					peek.addExp(exp)
-// 				} else {
-// 					return ErrParseFilterQuery{
-// 						Index: fmt.Sprint(i),
-// 						Char:  string(v),
-// 					}
-// 				}
-// 			}
-// 		}
-// 		if (i == len(s)-1) && s[i] != ']' {
-// 			if indexStart < indexBracketOpen && indexBracketOpen < indexBracketClose {
-// 				filterKey := s[indexStart:indexBracketOpen]         // get name to filterKey
-// 				value := s[indexValue:]                             // get value for Exp
-// 				column := s[indexBracketOpen+1 : indexBracketClose] // get column
-// 				exp := expFromString(filterKey, column, value)
-// 				peek, err := stack.Peek()
-// 				if err != nil {
-// 					return err
-// 				}
-// 				peek.addExp(exp)
-// 			} else {
-// 				return ErrParseFilterQuery{
-// 					Index: fmt.Sprint(i),
-// 					Char:  string(v),
-// 				}
-// 			}
-// 		}
-// 	}
-// 	return nil
-// }
-
-type Exprer interface {
-	AddParam(key string, value interface{})
-	GetParams() interface{}
-}
-
-type Expr struct {
-	Params map[string]interface{}
-}
-
-type Slice struct {
-	Params []interface{}
-}
-
-func NewSlice() *Slice {
-	return &Slice{
-		Params: make([]interface{}, 0),
-	}
-}
-
-func (q *Slice) AddParam(i string, v interface{}) {
-	q.Params = append(q.Params, v)
-}
-func (q *Slice) GetParams() interface{} {
-	return q.Params
-}
-
-func NewExpr() *Expr {
-	return &Expr{
-		Params: make(map[string]interface{}),
-	}
-}
-
-func (q Expr) AddParam(i string, v interface{}) {
-	q.Params[i] = v
-}
-func (q *Expr) GetParams() interface{} {
-	return q.Params
-}
-
-func (q *Expr) Parse(s string) error {
-	stack := structure.NewStack[Exprer]()
-	stack.Push(q)
-	defer stack.Clear()
-	var indexStart, indexValue int
-	for i, v := range s {
-		switch v {
-		case '{':
-			peek, err := stack.Peek()
-			if err != nil {
-				return err
-			}
-			switch peek.(type) {
-			case *Slice:
-				result := NewExpr()
-				key, err := url.QueryUnescape(s[indexStart:i])
-				if err != nil {
-					return err
-				}
-				peek.AddParam(key, result)
-				stack.Push(result)
-				indexStart = i + 1
-			default:
-				result := NewExpr()
-				key, err := url.QueryUnescape(s[indexStart:i])
-				if err != nil {
-					return err
-				}
-				peek.AddParam(key, result)
-				stack.Push(result)
-				indexStart = i + 1
-			}
-
-		case '[':
-			result := NewSlice()
-			peek, err := stack.Peek()
-			if err != nil {
-				return err
-			}
-			key, err := url.QueryUnescape(s[indexStart:i])
-			if err != nil {
-				return err
-			}
-			peek.AddParam(key, result)
-			stack.Push(result)
-			indexStart = i + 1
-		case ':':
-			indexValue = i + 1
-		case '}':
-			switch s[i-1] {
-			case ']', '}':
-				stack.Pop()
-				indexStart = i + 2
-			default:
-				if (indexStart < indexValue-1) && (indexValue < i) {
-					key, err := url.QueryUnescape(s[indexStart : indexValue-1])
-					if err != nil {
-						return err
-					}
-					value, err := url.QueryUnescape(s[indexValue:i])
-					if err != nil {
-						return err
-					}
-					peek, err := stack.Peek()
-					if err != nil {
-						return err
-					}
-					indexStart = i + 1
-					peek.AddParam(key, value)
-					stack.Pop()
-				} else {
-					var txtError string
-					if i < indexStart {
-						txtError = s[i:indexStart]
-					} else {
-						txtError = s[indexStart:i]
-					}
-					return ErrorFilter{
-						Index: i,
-						At:    txtError,
-					}
-				}
-			}
-		case ']':
-			switch s[i-1] {
-			case '}', ']':
-			default:
-				peek, err := stack.Peek()
-				if err != nil {
-					return err
-				}
-				switch peek.(type) {
-				case *Slice:
-					if indexStart < i {
-						value, err := url.QueryUnescape(s[indexStart:i])
-						if err != nil {
-							return err
-						}
-						peek.AddParam("", value)
-						indexStart = i + 1
-					} else {
-						var txtError string
-						if i < indexStart {
-							txtError = s[i:indexStart]
-						} else {
-							txtError = s[indexStart:i]
-						}
-						return ErrorFilter{
-							Index: i,
-							At:    txtError,
-						}
-					}
-				}
-			}
-			stack.Pop()
-		case ',':
-			switch s[i-1] {
-			case '}', ']':
-				indexStart = i + 1
-			default:
-				peek, err := stack.Peek()
-				if err != nil {
-					return err
-				}
-				switch peek.(type) {
-				case *Slice:
-					value := s[indexStart:i]
-					peek.AddParam("", value)
-					indexStart = i + 1
-				default:
-					if (indexStart < indexValue-1) && (indexValue < i) {
-						key, err := url.QueryUnescape(s[indexStart : indexValue-1])
-						if err != nil {
-							return err
-						}
-						value, err := url.QueryUnescape(s[indexValue:i])
-						if err != nil {
-							return err
-						}
-						peek.AddParam(key, value)
-						indexStart = i + 1
-					} else {
-						var txtError string
-						if i < indexStart {
-							txtError = s[i:indexStart]
-						} else {
-							txtError = s[indexStart:i]
-						}
-						return ErrorFilter{
-							Index: i,
-							At:    txtError,
-						}
-					}
-				}
-			}
-		}
-		/*  */
-		if i == len(s)-1 {
-			switch s[i] {
-			case '}', ']':
-			default:
-				if (indexStart < indexValue-1) && (indexValue < i+1) {
-					key, err := url.QueryUnescape(s[indexStart : indexValue-1])
-					if err != nil {
-						return err
-					}
-					value, err := url.QueryUnescape(s[indexValue:])
-					if err != nil {
-						return err
-					}
-					peek, err := stack.Peek()
-					if err != nil {
-						return err
-					}
-					peek.AddParam(key, value)
-				} else {
-					var txtError string
-					if i < indexStart {
-						txtError = s[i:indexStart]
-					} else {
-						txtError = s[indexStart:i]
-					}
-					return ErrorFilter{
-						Index: i,
-						At:    txtError,
 					}
 				}
 			}

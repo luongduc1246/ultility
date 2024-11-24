@@ -6,7 +6,7 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/versiontype"
-	"github.com/luongduc1246/ultility/reqparams/fulltextsearch"
+	"github.com/luongduc1246/ultility/reqparams"
 )
 
 /*
@@ -17,7 +17,7 @@ import (
 	2. date: queries
 	3. geo: queries
 */
-func ParseDistanceFeatureQuery(m fulltextsearch.Querier) types.DistanceFeatureQuery {
+func ParseDistanceFeatureQuery(m reqparams.Querier) types.DistanceFeatureQuery {
 	var query types.DistanceFeatureQuery
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -25,19 +25,19 @@ func ParseDistanceFeatureQuery(m fulltextsearch.Querier) types.DistanceFeatureQu
 		for key, value := range t {
 			switch key {
 			case "untyped":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query = ParseUntypedDistanceFeatureQuery(field)
 			case "date":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query = ParseDateDistanceFeatureQuery(field)
 			case "geo":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -54,7 +54,7 @@ func ParseDistanceFeatureQuery(m fulltextsearch.Querier) types.DistanceFeatureQu
 
 	{untyped{boost:float32,field:string,origin:json.RawMessage,pivot:string,_name:string}}
 */
-func ParseUntypedDistanceFeatureQuery(m fulltextsearch.Querier) types.UntypedDistanceFeatureQuery {
+func ParseUntypedDistanceFeatureQuery(m reqparams.Querier) types.UntypedDistanceFeatureQuery {
 	query := types.UntypedDistanceFeatureQuery{}
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -110,7 +110,7 @@ Phân tích câu query date cua range
 
 	{date{boost:float32,field:string,origin:string,pivot:string,_name:string}}
 */
-func ParseDateDistanceFeatureQuery(m fulltextsearch.Querier) types.DateDistanceFeatureQuery {
+func ParseDateDistanceFeatureQuery(m reqparams.Querier) types.DateDistanceFeatureQuery {
 	query := types.DateDistanceFeatureQuery{}
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -170,7 +170,7 @@ Phân tích câu query geo cua range
 		* [float64,float64...]
 		* string
 */
-func ParseGeoDistanceFeatureQuery(m fulltextsearch.Querier) types.GeoDistanceFeatureQuery {
+func ParseGeoDistanceFeatureQuery(m reqparams.Querier) types.GeoDistanceFeatureQuery {
 	query := types.GeoDistanceFeatureQuery{}
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -243,7 +243,7 @@ more_like_this{...parameters}
 	- version : int64
 	- version_type : string
 */
-func ParseMoreLikeThisQuery(m fulltextsearch.Querier) *types.MoreLikeThisQuery {
+func ParseMoreLikeThisQuery(m reqparams.Querier) *types.MoreLikeThisQuery {
 	query := types.NewMoreLikeThisQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -289,7 +289,7 @@ func ParseMoreLikeThisQuery(m fulltextsearch.Querier) *types.MoreLikeThisQuery {
 				}
 				query.FailOnUnsupportedField = &v
 			case "fields":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -316,7 +316,7 @@ func ParseMoreLikeThisQuery(m fulltextsearch.Querier) *types.MoreLikeThisQuery {
 				}
 				query.Include = &v
 			case "like":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -401,7 +401,7 @@ func ParseMoreLikeThisQuery(m fulltextsearch.Querier) *types.MoreLikeThisQuery {
 				}
 				query.Routing = &v
 			case "stop_words":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -418,7 +418,7 @@ func ParseMoreLikeThisQuery(m fulltextsearch.Querier) *types.MoreLikeThisQuery {
 				}
 				query.StopWords = fields
 			case "unlike":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -454,7 +454,7 @@ func ParseMoreLikeThisQuery(m fulltextsearch.Querier) *types.MoreLikeThisQuery {
 	  - string
 	  - query(like document)
 */
-func ParseLike(m fulltextsearch.Querier) []types.Like {
+func ParseLike(m reqparams.Querier) []types.Like {
 	likes := make([]types.Like, 0)
 	pars, ok := m.GetParams().([]interface{})
 	if !ok {
@@ -462,7 +462,7 @@ func ParseLike(m fulltextsearch.Querier) []types.Like {
 	}
 	for _, v := range pars {
 		switch t := v.(type) {
-		case fulltextsearch.Query:
+		case reqparams.Query:
 			doc := ParseLikeDocument(&t)
 			likes = append(likes, doc)
 		case string:
@@ -483,7 +483,7 @@ func ParseLike(m fulltextsearch.Querier) []types.Like {
   - version : int64
   - version_type : string
 */
-func ParseLikeDocument(m fulltextsearch.Querier) types.LikeDocument {
+func ParseLikeDocument(m reqparams.Querier) types.LikeDocument {
 	query := types.LikeDocument{}
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -497,7 +497,7 @@ func ParseLikeDocument(m fulltextsearch.Querier) types.LikeDocument {
 				}
 				query.Doc = json.RawMessage(v)
 			case "fields":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -526,7 +526,7 @@ func ParseLikeDocument(m fulltextsearch.Querier) types.LikeDocument {
 				}
 				query.Index_ = &v
 			case "per_field_analyzer":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -588,7 +588,7 @@ percolate{...parameters}
   - version : int64
   - version_type : string
 */
-func ParsePercolateQuery(m fulltextsearch.Querier) *types.PercolateQuery {
+func ParsePercolateQuery(m reqparams.Querier) *types.PercolateQuery {
 	query := types.NewPercolateQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -613,7 +613,7 @@ func ParsePercolateQuery(m fulltextsearch.Querier) *types.PercolateQuery {
 				}
 				query.Document = json.RawMessage(v)
 			case "documents":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -700,7 +700,7 @@ rank_feature{...parameters}
 	- saturation : query *saturation{pivot:float32}
 	- sigmoid : query *sigmoid{pivot:float32,exponent:float32}
 */
-func ParseRankFeatureQuery(m fulltextsearch.Querier) *types.RankFeatureQuery {
+func ParseRankFeatureQuery(m reqparams.Querier) *types.RankFeatureQuery {
 	query := types.NewRankFeatureQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -725,13 +725,13 @@ func ParseRankFeatureQuery(m fulltextsearch.Querier) *types.RankFeatureQuery {
 				}
 				query.Field = v
 			case "linear":
-				_, ok := value.(fulltextsearch.Querier)
+				_, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.Linear = types.NewRankFeatureFunctionLinear()
 			case "log":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -743,13 +743,13 @@ func ParseRankFeatureQuery(m fulltextsearch.Querier) *types.RankFeatureQuery {
 				}
 				query.QueryName_ = &v
 			case "saturation":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.Saturation = ParseSaturation(field)
 			case "sigmoid":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -760,7 +760,7 @@ func ParseRankFeatureQuery(m fulltextsearch.Querier) *types.RankFeatureQuery {
 	return query
 }
 
-func ParseLog(m fulltextsearch.Querier) *types.RankFeatureFunctionLogarithm {
+func ParseLog(m reqparams.Querier) *types.RankFeatureFunctionLogarithm {
 	query := types.NewRankFeatureFunctionLogarithm()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -784,7 +784,7 @@ func ParseLog(m fulltextsearch.Querier) *types.RankFeatureFunctionLogarithm {
 	return query
 }
 
-func ParseSaturation(m fulltextsearch.Querier) *types.RankFeatureFunctionSaturation {
+func ParseSaturation(m reqparams.Querier) *types.RankFeatureFunctionSaturation {
 	query := types.NewRankFeatureFunctionSaturation()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -807,7 +807,7 @@ func ParseSaturation(m fulltextsearch.Querier) *types.RankFeatureFunctionSaturat
 	}
 	return query
 }
-func ParseSigmoid(m fulltextsearch.Querier) *types.RankFeatureFunctionSigmoid {
+func ParseSigmoid(m reqparams.Querier) *types.RankFeatureFunctionSigmoid {
 	query := types.NewRankFeatureFunctionSigmoid()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -850,7 +850,7 @@ script{...parameters}
 	- _name : string
 	- script : query *script{id:string,...}
 */
-func ParseScriptQuery(m fulltextsearch.Querier) *types.ScriptQuery {
+func ParseScriptQuery(m reqparams.Querier) *types.ScriptQuery {
 	query := types.NewScriptQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -876,7 +876,7 @@ func ParseScriptQuery(m fulltextsearch.Querier) *types.ScriptQuery {
 				query.QueryName_ = &v
 
 			case "script":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -897,7 +897,7 @@ script_score{...parameters}
 	- _name : string
 	- script : query *script{id:string,...}
 */
-func ParseScriptScoreQuery(m fulltextsearch.Querier) *types.ScriptScoreQuery {
+func ParseScriptScoreQuery(m reqparams.Querier) *types.ScriptScoreQuery {
 	query := types.NewScriptScoreQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -927,7 +927,7 @@ func ParseScriptScoreQuery(m fulltextsearch.Querier) *types.ScriptScoreQuery {
 				vFloat32 := float32(v)
 				query.MinScore = &vFloat32
 			case "query":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -939,7 +939,7 @@ func ParseScriptScoreQuery(m fulltextsearch.Querier) *types.ScriptScoreQuery {
 				}
 				query.QueryName_ = &v
 			case "script":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -959,7 +959,7 @@ script_score{...parameters}
   - _name : string
 */
 
-func ParseWrapperQuery(m fulltextsearch.Querier) *types.WrapperQuery {
+func ParseWrapperQuery(m reqparams.Querier) *types.WrapperQuery {
 	query := types.NewWrapperQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1005,7 +1005,7 @@ pinned{...parameters}
   - _name : string
 */
 
-func ParsePinnedQuery(m fulltextsearch.Querier) *types.PinnedQuery {
+func ParsePinnedQuery(m reqparams.Querier) *types.PinnedQuery {
 	query := types.NewPinnedQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1024,7 +1024,7 @@ func ParsePinnedQuery(m fulltextsearch.Querier) *types.PinnedQuery {
 				vFloat32 := float32(v)
 				query.Boost = &vFloat32
 			case "ids":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1041,7 +1041,7 @@ func ParsePinnedQuery(m fulltextsearch.Querier) *types.PinnedQuery {
 				}
 				query.Ids = fields
 			case "docs":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1051,14 +1051,14 @@ func ParsePinnedQuery(m fulltextsearch.Querier) *types.PinnedQuery {
 					break
 				}
 				for _, v := range pars {
-					quies, ok := v.(fulltextsearch.Querier)
+					quies, ok := v.(reqparams.Querier)
 					if ok {
 						fields = append(fields, ParsePinnedDoc(quies))
 					}
 				}
 				query.Docs = fields
 			case "organic":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1075,7 +1075,7 @@ func ParsePinnedQuery(m fulltextsearch.Querier) *types.PinnedQuery {
 	return query
 }
 
-func ParsePinnedDoc(m fulltextsearch.Querier) types.PinnedDoc {
+func ParsePinnedDoc(m reqparams.Querier) types.PinnedDoc {
 	query := types.NewPinnedDoc()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1111,7 +1111,7 @@ rule{...parameters}
   - _name : string
 */
 
-func ParseRuleQuery(m fulltextsearch.Querier) *types.RuleQuery {
+func ParseRuleQuery(m reqparams.Querier) *types.RuleQuery {
 	query := types.NewRuleQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1137,7 +1137,7 @@ func ParseRuleQuery(m fulltextsearch.Querier) *types.RuleQuery {
 				j := json.RawMessage(v)
 				query.MatchCriteria = j
 			case "organic":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1149,7 +1149,7 @@ func ParseRuleQuery(m fulltextsearch.Querier) *types.RuleQuery {
 				}
 				query.QueryName_ = &v
 			case "ruleset_ids":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}

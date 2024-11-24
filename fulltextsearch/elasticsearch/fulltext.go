@@ -12,21 +12,21 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/simplequerystringflag"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/textquerytype"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/zerotermsquery"
-	"github.com/luongduc1246/ultility/reqparams/fulltextsearch"
+	"github.com/luongduc1246/ultility/reqparams"
 )
 
 /*
 Phân tích câu query intervals
 câu query có dạng intervals{fields{all_of{...}}}
 */
-func ParseIntervalsQuery(m fulltextsearch.Querier) map[string]types.IntervalsQuery {
+func ParseIntervalsQuery(m reqparams.Querier) map[string]types.IntervalsQuery {
 	intervals := make(map[string]types.IntervalsQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewIntervalsQuery()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -38,13 +38,13 @@ func ParseIntervalsQuery(m fulltextsearch.Querier) map[string]types.IntervalsQue
 			for field, value := range mapOptions {
 				switch field {
 				case "all_of":
-					allOf, ok := value.(fulltextsearch.Querier)
+					allOf, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
 					query.AllOf = ParseAllOfQuery(allOf)
 				case "any_of":
-					anyOf, ok := value.(fulltextsearch.Querier)
+					anyOf, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
@@ -61,25 +61,25 @@ func ParseIntervalsQuery(m fulltextsearch.Querier) map[string]types.IntervalsQue
 					vFloat32 := float32(v)
 					query.Boost = &vFloat32
 				case "fuzzy":
-					fuzzy, ok := value.(fulltextsearch.Querier)
+					fuzzy, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
 					query.Fuzzy = ParseIntervalsFuzzyQuery(fuzzy)
 				case "match":
-					match, ok := value.(fulltextsearch.Querier)
+					match, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
 					query.Match = ParseIntervalsMatchQuery(match)
 				case "prefix":
-					prefix, ok := value.(fulltextsearch.Querier)
+					prefix, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
 					query.Prefix = ParseIntervalsPrefixQuery(prefix)
 				case "wildcard":
-					wildcard, ok := value.(fulltextsearch.Querier)
+					wildcard, ok := value.(reqparams.Querier)
 					if !ok {
 						break
 					}
@@ -104,7 +104,7 @@ func ParseIntervalsQuery(m fulltextsearch.Querier) map[string]types.IntervalsQue
 Phân tích câu query all_of
 câu query có all_of{filter{...},intervals[{...},{...}]}
 */
-func ParseAllOfQuery(m fulltextsearch.Querier) *types.IntervalsAllOf {
+func ParseAllOfQuery(m reqparams.Querier) *types.IntervalsAllOf {
 	allOf := types.NewIntervalsAllOf()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -112,7 +112,7 @@ func ParseAllOfQuery(m fulltextsearch.Querier) *types.IntervalsAllOf {
 		for key, value := range t {
 			switch key {
 			case "filter":
-				filter, ok := value.(fulltextsearch.Querier)
+				filter, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -128,7 +128,7 @@ func ParseAllOfQuery(m fulltextsearch.Querier) *types.IntervalsAllOf {
 				}
 				allOf.MaxGaps = &v
 			case "intervals":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -138,7 +138,7 @@ func ParseAllOfQuery(m fulltextsearch.Querier) *types.IntervalsAllOf {
 				}
 				sliceIntervals := []types.Intervals{}
 				for _, query := range options {
-					v, ok := query.(fulltextsearch.Querier)
+					v, ok := query.(reqparams.Querier)
 					if !ok {
 						break
 					}
@@ -167,7 +167,7 @@ Phân tích câu query intervals trong all_of,after,...
 
 	...{all_of{...}}
 */
-func ParseIntervals(m fulltextsearch.Querier) *types.Intervals {
+func ParseIntervals(m reqparams.Querier) *types.Intervals {
 	query := types.NewIntervals()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -175,37 +175,37 @@ func ParseIntervals(m fulltextsearch.Querier) *types.Intervals {
 		for key, value := range t {
 			switch key {
 			case "all_of":
-				allOf, ok := value.(fulltextsearch.Querier)
+				allOf, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.AllOf = ParseAllOfQuery(allOf)
 			case "any_of":
-				anyOf, ok := value.(fulltextsearch.Querier)
+				anyOf, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.AnyOf = ParseAnyOfQuery(anyOf)
 			case "fuzzy":
-				fuzzy, ok := value.(fulltextsearch.Querier)
+				fuzzy, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.Fuzzy = ParseIntervalsFuzzyQuery(fuzzy)
 			case "match":
-				match, ok := value.(fulltextsearch.Querier)
+				match, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.Match = ParseIntervalsMatchQuery(match)
 			case "prefix":
-				prefix, ok := value.(fulltextsearch.Querier)
+				prefix, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				query.Prefix = ParseIntervalsPrefixQuery(prefix)
 			case "wildcard":
-				wildcard, ok := value.(fulltextsearch.Querier)
+				wildcard, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -221,7 +221,7 @@ Phân tích câu filter nằm trong macth của intervals,all_of...
 
 	...{after{all_of{...},...}}
 */
-func ParseIntervalsFilter(m fulltextsearch.Querier) *types.IntervalsFilter {
+func ParseIntervalsFilter(m reqparams.Querier) *types.IntervalsFilter {
 	filter := types.NewIntervalsFilter()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -229,55 +229,55 @@ func ParseIntervalsFilter(m fulltextsearch.Querier) *types.IntervalsFilter {
 		for key, value := range t {
 			switch key {
 			case "after":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				filter.After = ParseIntervals(field)
 			case "before":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				filter.Before = ParseIntervals(field)
 			case "contained_by":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				filter.ContainedBy = ParseIntervals(field)
 			case "containing":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				filter.Containing = ParseIntervals(field)
 			case "not_contained_by":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				filter.NotContainedBy = ParseIntervals(field)
 			case "not_containing":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				filter.NotContaining = ParseIntervals(field)
 			case "not_overlapping":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				filter.NotOverlapping = ParseIntervals(field)
 			case "overlapping":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				filter.Overlapping = ParseIntervals(field)
 			case "script":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -292,7 +292,7 @@ func ParseIntervalsFilter(m fulltextsearch.Querier) *types.IntervalsFilter {
 Phân tích câu query script
 câu query có dạng ...{id:3,lang:vn,...}
 */
-func ParseScript(m fulltextsearch.Querier) *types.Script {
+func ParseScript(m reqparams.Querier) *types.Script {
 	query := types.NewScript()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -315,7 +315,7 @@ func ParseScript(m fulltextsearch.Querier) *types.Script {
 				}
 				query.Lang = &lang
 			case "options":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -333,7 +333,7 @@ func ParseScript(m fulltextsearch.Querier) *types.Script {
 				}
 				query.Options = options
 			case "params":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -368,7 +368,7 @@ Phân tích câu query any_of
 
 	...{filter{}}
 */
-func ParseAnyOfQuery(m fulltextsearch.Querier) *types.IntervalsAnyOf {
+func ParseAnyOfQuery(m reqparams.Querier) *types.IntervalsAnyOf {
 	anyOf := types.NewIntervalsAnyOf()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -376,14 +376,14 @@ func ParseAnyOfQuery(m fulltextsearch.Querier) *types.IntervalsAnyOf {
 		for key, value := range t {
 			switch key {
 			case "filter":
-				filter, ok := value.(fulltextsearch.Querier)
+				filter, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				anyOf.Filter = ParseIntervalsFilter(filter)
 
 			case "intervals":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -393,7 +393,7 @@ func ParseAnyOfQuery(m fulltextsearch.Querier) *types.IntervalsAnyOf {
 				}
 				sliceIntervals := []types.Intervals{}
 				for _, query := range options {
-					v, ok := query.(fulltextsearch.Querier)
+					v, ok := query.(reqparams.Querier)
 					if !ok {
 						break
 					}
@@ -411,7 +411,7 @@ func ParseAnyOfQuery(m fulltextsearch.Querier) *types.IntervalsAnyOf {
 Phân tích câu query fuzzy
 câu query có dạng ...{...}
 */
-func ParseIntervalsFuzzyQuery(m fulltextsearch.Querier) *types.IntervalsFuzzy {
+func ParseIntervalsFuzzyQuery(m reqparams.Querier) *types.IntervalsFuzzy {
 	fuzzy := types.NewIntervalsFuzzy()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -473,7 +473,7 @@ Phân tích câu query match trong intervals
 
 	...{...}
 */
-func ParseIntervalsMatchQuery(m fulltextsearch.Querier) *types.IntervalsMatch {
+func ParseIntervalsMatchQuery(m reqparams.Querier) *types.IntervalsMatch {
 	query := types.NewIntervalsMatch()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -487,7 +487,7 @@ func ParseIntervalsMatchQuery(m fulltextsearch.Querier) *types.IntervalsMatch {
 				}
 				query.Analyzer = &s
 			case "filter":
-				filter, ok := value.(fulltextsearch.Querier)
+				filter, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -535,7 +535,7 @@ Phân tích câu query prefix trong intervals
 
 	...{...}
 */
-func ParseIntervalsPrefixQuery(m fulltextsearch.Querier) *types.IntervalsPrefix {
+func ParseIntervalsPrefixQuery(m reqparams.Querier) *types.IntervalsPrefix {
 	query := types.NewIntervalsPrefix()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -571,7 +571,7 @@ Phân tích câu query wildcard trong intervals
 
 	...{...}
 */
-func ParseIntervalsWildcardQuery(m fulltextsearch.Querier) *types.IntervalsWildcard {
+func ParseIntervalsWildcardQuery(m reqparams.Querier) *types.IntervalsWildcard {
 	query := types.NewIntervalsWildcard()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -606,14 +606,14 @@ func ParseIntervalsWildcardQuery(m fulltextsearch.Querier) *types.IntervalsWildc
 Phân tích câu query match
 query có dạng match{anylyzer:true,...}
 */
-func ParseMatchQuery(m fulltextsearch.Querier) map[string]types.MatchQuery {
+func ParseMatchQuery(m reqparams.Querier) map[string]types.MatchQuery {
 	matchQuery := make(map[string]types.MatchQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewMatchQuery()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -759,14 +759,14 @@ func ParseMatchQuery(m fulltextsearch.Querier) map[string]types.MatchQuery {
 Phân tích câu query match_phrase
 query có dạng match_phrase{anylyzer:true}
 */
-func ParseMatchPhraseQuery(m fulltextsearch.Querier) map[string]types.MatchPhraseQuery {
+func ParseMatchPhraseQuery(m reqparams.Querier) map[string]types.MatchPhraseQuery {
 	matchQuery := make(map[string]types.MatchPhraseQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewMatchPhraseQuery()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -839,14 +839,14 @@ func ParseMatchPhraseQuery(m fulltextsearch.Querier) map[string]types.MatchPhras
 Phân tích câu query match_phrase_prefix
 query có dạng match_phrase_prefix{anylyzer:true}
 */
-func ParseMatchPhrasePrefixQuery(m fulltextsearch.Querier) map[string]types.MatchPhrasePrefixQuery {
+func ParseMatchPhrasePrefixQuery(m reqparams.Querier) map[string]types.MatchPhrasePrefixQuery {
 	matchQuery := make(map[string]types.MatchPhrasePrefixQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewMatchPhrasePrefixQuery()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -928,14 +928,14 @@ func ParseMatchPhrasePrefixQuery(m fulltextsearch.Querier) map[string]types.Matc
 Phân tích câu query match_bool_prefix
 query có dạng match_bool_prefix{anylyzer:true}
 */
-func ParseMatchBoolPrefixQuery(m fulltextsearch.Querier) map[string]types.MatchBoolPrefixQuery {
+func ParseMatchBoolPrefixQuery(m reqparams.Querier) map[string]types.MatchBoolPrefixQuery {
 	matchQuery := make(map[string]types.MatchBoolPrefixQuery)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewMatchBoolPrefixQuery()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				break
 			}
@@ -1049,7 +1049,7 @@ Phân tích câu query combined_fields
 
 	combined_fields{boost:3,fields[a,b,d]}
 */
-func ParseCombinedFieldsQuery(m fulltextsearch.Querier) *types.CombinedFieldsQuery {
+func ParseCombinedFieldsQuery(m reqparams.Querier) *types.CombinedFieldsQuery {
 	query := types.NewCombinedFieldsQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1089,7 +1089,7 @@ func ParseCombinedFieldsQuery(m fulltextsearch.Querier) *types.CombinedFieldsQue
 				op.Name = v
 				query.Operator = &op
 			case "fields":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1138,7 +1138,7 @@ Phân tích câu query multi_match
 
 	multi_match{boost:3,fields=[a,b,d]}
 */
-func ParseMultiMatchQuery(m fulltextsearch.Querier) *types.MultiMatchQuery {
+func ParseMultiMatchQuery(m reqparams.Querier) *types.MultiMatchQuery {
 	query := types.NewMultiMatchQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1184,7 +1184,7 @@ func ParseMultiMatchQuery(m fulltextsearch.Querier) *types.MultiMatchQuery {
 				vFloat64 := types.Float64(v)
 				query.CutoffFrequency = &vFloat64
 			case "fields":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1318,7 +1318,7 @@ func ParseMultiMatchQuery(m fulltextsearch.Querier) *types.MultiMatchQuery {
 Phân tích câu query query_string
 câu query có dạng query_string{boost:3,fields[a,b,d]}
 */
-func ParseQueryStringQuery(m fulltextsearch.Querier) *types.QueryStringQuery {
+func ParseQueryStringQuery(m reqparams.Querier) *types.QueryStringQuery {
 	query := types.NewQueryStringQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1407,7 +1407,7 @@ func ParseQueryStringQuery(m fulltextsearch.Querier) *types.QueryStringQuery {
 				}
 				query.Escape = &v
 			case "fields":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -1563,7 +1563,7 @@ Phân tích câu query simple_query_string
 
 	simple_query_string{boost=3,...}
 */
-func ParseSimpleQueryStringQuery(m fulltextsearch.Querier) *types.SimpleQueryStringQuery {
+func ParseSimpleQueryStringQuery(m reqparams.Querier) *types.SimpleQueryStringQuery {
 	query := types.NewSimpleQueryStringQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -1617,7 +1617,7 @@ func ParseSimpleQueryStringQuery(m fulltextsearch.Querier) *types.SimpleQueryStr
 				query.DefaultOperator = &op
 
 			case "fields":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}

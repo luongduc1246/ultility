@@ -9,7 +9,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/functionboostmode"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/functionscoremode"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types/enums/multivaluemode"
-	"github.com/luongduc1246/ultility/reqparams/fulltextsearch"
+	"github.com/luongduc1246/ultility/reqparams"
 )
 
 type DecayParameters struct {
@@ -19,7 +19,7 @@ type DecayParameters struct {
 Phân tích câu query bool
 câu query có dạng bool{filter[{...},{...}}],must[{...}],...}
 */
-func ParseBoolQuery(m fulltextsearch.Querier) *types.BoolQuery {
+func ParseBoolQuery(m reqparams.Querier) *types.BoolQuery {
 	query := types.NewBoolQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -40,7 +40,7 @@ func ParseBoolQuery(m fulltextsearch.Querier) *types.BoolQuery {
 			case "minimum_should_match":
 				query.MinimumShouldMatch = value
 			case "filter":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -50,14 +50,14 @@ func ParseBoolQuery(m fulltextsearch.Querier) *types.BoolQuery {
 				}
 				sliceQuery := []types.Query{}
 				for _, q := range options {
-					if que, ok := q.(fulltextsearch.Querier); ok {
+					if que, ok := q.(reqparams.Querier); ok {
 						i := ParseQueryToSearch(que)
 						sliceQuery = append(sliceQuery, *i)
 					}
 				}
 				query.Filter = sliceQuery
 			case "must":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -67,14 +67,14 @@ func ParseBoolQuery(m fulltextsearch.Querier) *types.BoolQuery {
 				}
 				sliceQuery := []types.Query{}
 				for _, q := range options {
-					if que, ok := q.(fulltextsearch.Querier); ok {
+					if que, ok := q.(reqparams.Querier); ok {
 						i := ParseQueryToSearch(que)
 						sliceQuery = append(sliceQuery, *i)
 					}
 				}
 				query.Must = sliceQuery
 			case "must_not":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -84,14 +84,14 @@ func ParseBoolQuery(m fulltextsearch.Querier) *types.BoolQuery {
 				}
 				sliceQuery := []types.Query{}
 				for _, q := range options {
-					if que, ok := q.(fulltextsearch.Querier); ok {
+					if que, ok := q.(reqparams.Querier); ok {
 						i := ParseQueryToSearch(que)
 						sliceQuery = append(sliceQuery, *i)
 					}
 				}
 				query.MustNot = sliceQuery
 			case "should":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -101,7 +101,7 @@ func ParseBoolQuery(m fulltextsearch.Querier) *types.BoolQuery {
 				}
 				sliceQuery := []types.Query{}
 				for _, q := range options {
-					if que, ok := q.(fulltextsearch.Querier); ok {
+					if que, ok := q.(reqparams.Querier); ok {
 						i := ParseQueryToSearch(que)
 						sliceQuery = append(sliceQuery, *i)
 					}
@@ -123,7 +123,7 @@ func ParseBoolQuery(m fulltextsearch.Querier) *types.BoolQuery {
 Phân tích câu query Boosting
 Câu query có dạng boosting{negative{...},positive{...},...}
 */
-func ParseBoostingQuery(m fulltextsearch.Querier) *types.BoostingQuery {
+func ParseBoostingQuery(m reqparams.Querier) *types.BoostingQuery {
 	query := types.NewBoostingQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -153,14 +153,14 @@ func ParseBoostingQuery(m fulltextsearch.Querier) *types.BoostingQuery {
 				vFloat64 := types.Float64(v)
 				query.NegativeBoost = vFloat64
 			case "negative":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseQueryToSearch(field)
 				query.Negative = i
 			case "positive":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -179,7 +179,7 @@ func ParseBoostingQuery(m fulltextsearch.Querier) *types.BoostingQuery {
 Phân tích câu query constantscore
 Câu query có dạng constant_score{filter{...},...}
 */
-func ParseConstantScoreQuery(m fulltextsearch.Querier) *types.ConstantScoreQuery {
+func ParseConstantScoreQuery(m reqparams.Querier) *types.ConstantScoreQuery {
 	query := types.NewConstantScoreQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -198,7 +198,7 @@ func ParseConstantScoreQuery(m fulltextsearch.Querier) *types.ConstantScoreQuery
 				vFloat32 := float32(v)
 				query.Boost = &vFloat32
 			case "filter":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -220,7 +220,7 @@ func ParseConstantScoreQuery(m fulltextsearch.Querier) *types.ConstantScoreQuery
 Phân tích câu query dismax
 Câu query có dạng dis_max{queries[{...}],...}
 */
-func ParseDisMaxQuery(m fulltextsearch.Querier) *types.DisMaxQuery {
+func ParseDisMaxQuery(m reqparams.Querier) *types.DisMaxQuery {
 	query := types.NewDisMaxQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -240,7 +240,7 @@ func ParseDisMaxQuery(m fulltextsearch.Querier) *types.DisMaxQuery {
 				query.Boost = &vFloat32
 
 			case "queries":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -250,7 +250,7 @@ func ParseDisMaxQuery(m fulltextsearch.Querier) *types.DisMaxQuery {
 				}
 				sliceQuery := []types.Query{}
 				for _, q := range options {
-					if que, ok := q.(fulltextsearch.Querier); ok {
+					if que, ok := q.(reqparams.Querier); ok {
 						i := ParseQueryToSearch(que)
 						sliceQuery = append(sliceQuery, *i)
 					}
@@ -281,7 +281,7 @@ func ParseDisMaxQuery(m fulltextsearch.Querier) *types.DisMaxQuery {
 Phân tích câu query fuction_score
 Câu query có dạng function_score{query{...},functions[{exp{...}],...}
 */
-func ParseFunctionScoreQuery(m fulltextsearch.Querier) *types.FunctionScoreQuery {
+func ParseFunctionScoreQuery(m reqparams.Querier) *types.FunctionScoreQuery {
 	query := types.NewFunctionScoreQuery()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -314,14 +314,14 @@ func ParseFunctionScoreQuery(m fulltextsearch.Querier) *types.FunctionScoreQuery
 				}
 				query.QueryName_ = &v
 			case "query":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseQueryToSearch(field)
 				query.Query = i
 			case "functions":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -331,7 +331,7 @@ func ParseFunctionScoreQuery(m fulltextsearch.Querier) *types.FunctionScoreQuery
 				}
 				sliceQuery := []types.FunctionScore{}
 				for _, q := range options {
-					if que, ok := q.(fulltextsearch.Querier); ok {
+					if que, ok := q.(reqparams.Querier); ok {
 						i := ParseFunctionScore(que)
 						sliceQuery = append(sliceQuery, *i)
 					}
@@ -378,7 +378,7 @@ Phân tích trường function_score trong Functions trong FunctionScoreQuery
 
 	functions[{...},{...}]
 */
-func ParseFunctionScore(m fulltextsearch.Querier) *types.FunctionScore {
+func ParseFunctionScore(m reqparams.Querier) *types.FunctionScore {
 	query := types.NewFunctionScore()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -386,49 +386,49 @@ func ParseFunctionScore(m fulltextsearch.Querier) *types.FunctionScore {
 		for key, value := range t {
 			switch key {
 			case "exp":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseDecayFunction(field)
 				query.Exp = i
 			case "field_value_factor":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseFieldValueFactor(field)
 				query.FieldValueFactor = i
 			case "filter":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseQueryToSearch(field)
 				query.Filter = i
 			case "gauss":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseDecayFunction(field)
 				query.Gauss = i
 			case "linear":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseDecayFunction(field)
 				query.Linear = i
 			case "random_score":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseRandomScore(field)
 				query.RandomScore = i
 			case "script_score":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -451,7 +451,7 @@ func ParseFunctionScore(m fulltextsearch.Querier) *types.FunctionScore {
 	return query
 }
 
-func ParseRandomScore(m fulltextsearch.Querier) *types.RandomScoreFunction {
+func ParseRandomScore(m reqparams.Querier) *types.RandomScoreFunction {
 	query := types.NewRandomScoreFunction()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -480,7 +480,7 @@ func ParseRandomScore(m fulltextsearch.Querier) *types.RandomScoreFunction {
 phân tích script_score
 query có dạng script_score{script{...}}
 */
-func ParseScriptScore(m fulltextsearch.Querier) *types.ScriptScoreFunction {
+func ParseScriptScore(m reqparams.Querier) *types.ScriptScoreFunction {
 	query := types.NewScriptScoreFunction()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -488,7 +488,7 @@ func ParseScriptScore(m fulltextsearch.Querier) *types.ScriptScoreFunction {
 		for key, value := range t {
 			switch key {
 			case "script":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -504,7 +504,7 @@ phân tích field_value_factor
 query có dạng field_value_factor{script{...}}
 */
 
-func ParseFieldValueFactor(m fulltextsearch.Querier) *types.FieldValueFactorScoreFunction {
+func ParseFieldValueFactor(m reqparams.Querier) *types.FieldValueFactorScoreFunction {
 	query := types.NewFieldValueFactorScoreFunction()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -562,35 +562,35 @@ Phân tích exp,gauss,linear(decayfunction)
 	- numeric{}
 	- geo{}
 */
-func ParseDecayFunction(m fulltextsearch.Querier) types.DecayFunction {
+func ParseDecayFunction(m reqparams.Querier) types.DecayFunction {
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			switch key {
 			case "untyped":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseUntypedDecayFunction(field)
 				return i
 			case "date":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseDateDecayFunction(field)
 				return i
 			case "numeric":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
 				i := ParseNumericDecayFunction(field)
 				return i
 			case "geo":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -607,7 +607,7 @@ func ParseDecayFunction(m fulltextsearch.Querier) types.DecayFunction {
 	query : untyped{decay_function_base{},multi_value_mode:testmode}
 */
 
-func ParseUntypedDecayFunction(m fulltextsearch.Querier) *types.UntypedDecayFunction {
+func ParseUntypedDecayFunction(m reqparams.Querier) *types.UntypedDecayFunction {
 	query := types.NewUntypedDecayFunction()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -615,7 +615,7 @@ func ParseUntypedDecayFunction(m fulltextsearch.Querier) *types.UntypedDecayFunc
 		for key, value := range t {
 			switch key {
 			case "decay_function_base":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -639,14 +639,14 @@ func ParseUntypedDecayFunction(m fulltextsearch.Querier) *types.UntypedDecayFunc
 	decay_function_base{fields{decay:...}}
 */
 
-func ParseDecayPlacementUntyped(m fulltextsearch.Querier) map[string]types.DecayPlacement {
+func ParseDecayPlacementUntyped(m reqparams.Querier) map[string]types.DecayPlacement {
 	base := make(map[string]types.DecayPlacement)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewDecayPlacement()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				return nil
 			}
@@ -696,7 +696,7 @@ func ParseDecayPlacementUntyped(m fulltextsearch.Querier) map[string]types.Decay
 phân tích date
 query : date{decay_function_base{},multi_value_mode:testmode}
 */
-func ParseDateDecayFunction(m fulltextsearch.Querier) *types.DateDecayFunction {
+func ParseDateDecayFunction(m reqparams.Querier) *types.DateDecayFunction {
 	query := types.NewDateDecayFunction()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -704,7 +704,7 @@ func ParseDateDecayFunction(m fulltextsearch.Querier) *types.DateDecayFunction {
 		for key, value := range t {
 			switch key {
 			case "decay_function_base":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -727,14 +727,14 @@ func ParseDateDecayFunction(m fulltextsearch.Querier) *types.DateDecayFunction {
 phân tích decay_function_base
 decay_function_base{fields{decay:...}}
 */
-func ParseDecayPlacementDate(m fulltextsearch.Querier) map[string]types.DecayPlacementDateMathDuration {
+func ParseDecayPlacementDate(m reqparams.Querier) map[string]types.DecayPlacementDateMathDuration {
 	base := make(map[string]types.DecayPlacementDateMathDuration)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewDecayPlacementDateMathDuration()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				return nil
 			}
@@ -777,7 +777,7 @@ func ParseDecayPlacementDate(m fulltextsearch.Querier) map[string]types.DecayPla
 	return base
 }
 
-func ParseNumericDecayFunction(m fulltextsearch.Querier) *types.NumericDecayFunction {
+func ParseNumericDecayFunction(m reqparams.Querier) *types.NumericDecayFunction {
 	query := types.NewNumericDecayFunction()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -785,7 +785,7 @@ func ParseNumericDecayFunction(m fulltextsearch.Querier) *types.NumericDecayFunc
 		for key, value := range t {
 			switch key {
 			case "decay_function_base":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -804,14 +804,14 @@ func ParseNumericDecayFunction(m fulltextsearch.Querier) *types.NumericDecayFunc
 	return query
 }
 
-func ParseDecayPlacementNumeric(m fulltextsearch.Querier) map[string]types.DecayPlacementdoubledouble {
+func ParseDecayPlacementNumeric(m reqparams.Querier) map[string]types.DecayPlacementdoubledouble {
 	base := make(map[string]types.DecayPlacementdoubledouble)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewDecayPlacementdoubledouble()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				return nil
 			}
@@ -863,7 +863,7 @@ func ParseDecayPlacementNumeric(m fulltextsearch.Querier) map[string]types.Decay
 	return base
 }
 
-func ParseGeoDecayFunction(m fulltextsearch.Querier) *types.GeoDecayFunction {
+func ParseGeoDecayFunction(m reqparams.Querier) *types.GeoDecayFunction {
 	query := types.NewGeoDecayFunction()
 	params := m.GetParams()
 	switch t := params.(type) {
@@ -871,7 +871,7 @@ func ParseGeoDecayFunction(m fulltextsearch.Querier) *types.GeoDecayFunction {
 		for key, value := range t {
 			switch key {
 			case "decay_function_base":
-				field, ok := value.(fulltextsearch.Querier)
+				field, ok := value.(reqparams.Querier)
 				if !ok {
 					break
 				}
@@ -890,14 +890,14 @@ func ParseGeoDecayFunction(m fulltextsearch.Querier) *types.GeoDecayFunction {
 	return query
 }
 
-func ParseDecayPlacementGeo(m fulltextsearch.Querier) map[string]types.DecayPlacementGeoLocationDistance {
+func ParseDecayPlacementGeo(m reqparams.Querier) map[string]types.DecayPlacementGeoLocationDistance {
 	base := make(map[string]types.DecayPlacementGeoLocationDistance)
 	params := m.GetParams()
 	switch t := params.(type) {
 	case map[string]interface{}:
 		for key, value := range t {
 			query := types.NewDecayPlacementGeoLocationDistance()
-			options, ok := value.(fulltextsearch.Querier)
+			options, ok := value.(reqparams.Querier)
 			if !ok {
 				return nil
 			}

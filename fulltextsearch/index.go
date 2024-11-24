@@ -8,6 +8,7 @@ import (
 
 type FullTextSearcher interface {
 	CreateIndex(ctx context.Context, name string) error
+	DeleteIndex(ctx context.Context, index string) error
 	Insert(ctx context.Context, index string, id string, model interface{}) error
 	Update(ctx context.Context, index string, id string, model interface{}) error
 	Delete(ctx context.Context, index string, id string) error
