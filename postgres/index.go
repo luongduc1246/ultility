@@ -360,21 +360,23 @@ func (pgr Postgres) Search(ctx context.Context, reqPamrams *reqparams.Search, mo
 	cs := gormdb.NewClauseSearch()
 	cs.Parse(stm, reqPamrams)
 	exps := cs.Build()
-	fieldPreload := gormdb.NewFieldPreload()
-	fields := reqparams.NewFields()
-	fields.ParseFromQuerier(reqPamrams.Fields)
-	fieldPreload.Parse(stm, fields)
-	fb := fieldPreload.BuildPreload(tx)
+	if reqPamrams.Fields != nil {
+		fieldPreload := gormdb.NewFieldPreload()
+		fields := reqparams.NewFields()
+		fields.ParseFromQuerier(reqPamrams.Fields)
+		fieldPreload.Parse(stm, fields)
+		tx = fieldPreload.BuildPreload(tx)
+	}
 	/* làm việc với extra */
 	scopes, clauses, _ := parseExtra(extra...)
 	if len(scopes) > 0 {
-		fb = fb.Scopes(scopes...)
+		tx = tx.Scopes(scopes...)
 	}
 	if len(clauses) > 0 {
-		fb = fb.Clauses(clauses...)
+		tx = tx.Clauses(clauses...)
 	}
-	fb.Clauses(exps...).Find(models)
-	err = fb.Error
+	tx = tx.Clauses(exps...).Find(models)
+	err = tx.Error
 	if err != nil {
 		return err
 	}
@@ -389,21 +391,23 @@ func (pgr Postgres) SearchSoftDelete(ctx context.Context, reqPamrams *reqparams.
 	cs := gormdb.NewClauseSearch()
 	cs.Parse(stm, reqPamrams)
 	exps := cs.Build()
-	fieldPreload := gormdb.NewFieldPreload()
-	fields := reqparams.NewFields()
-	fields.ParseFromQuerier(reqPamrams.Fields)
-	fieldPreload.Parse(stm, fields)
-	fb := fieldPreload.BuildPreload(tx)
+	if reqPamrams.Fields != nil {
+		fieldPreload := gormdb.NewFieldPreload()
+		fields := reqparams.NewFields()
+		fields.ParseFromQuerier(reqPamrams.Fields)
+		fieldPreload.Parse(stm, fields)
+		tx = fieldPreload.BuildPreload(tx)
+	}
 	/* làm việc với extra */
 	scopes, clauses, _ := parseExtra(extra...)
 	if len(scopes) > 0 {
-		fb = fb.Scopes(scopes...)
+		tx = tx.Scopes(scopes...)
 	}
 	if len(clauses) > 0 {
-		fb = fb.Clauses(clauses...)
+		tx = tx.Clauses(clauses...)
 	}
-	fb.Unscoped().Clauses(exps...).Where("deleted_at IS NOT NULL").Find(models)
-	err = fb.Error
+	tx = tx.Unscoped().Clauses(exps...).Where("deleted_at IS NOT NULL").Find(models)
+	err = tx.Error
 	if err != nil {
 		return err
 	}
