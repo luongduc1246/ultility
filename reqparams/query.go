@@ -193,30 +193,39 @@ func (q *Query) Parse(s string) error {
 			switch s[i] {
 			case '}', ']':
 			default:
-				if (indexStart < indexValue-1) && (indexValue < i+1) {
-					key, err := url.QueryUnescape(s[indexStart : indexValue-1])
+				peek, err := stack.Peek()
+				if err != nil {
+					return err
+				}
+				switch peek.(type) {
+				case *Slice:
+					value, err := url.QueryUnescape(s[indexStart:])
 					if err != nil {
 						return err
 					}
-					value, err := url.QueryUnescape(s[indexValue:])
-					if err != nil {
-						return err
-					}
-					peek, err := stack.Peek()
-					if err != nil {
-						return err
-					}
-					peek.AddParam(key, value)
-				} else {
-					var txtError string
-					if i < indexStart {
-						txtError = s[i:indexStart]
+					peek.AddParam("", value)
+				default:
+					if (indexStart < indexValue-1) && (indexValue < i+1) {
+						key, err := url.QueryUnescape(s[indexStart : indexValue-1])
+						if err != nil {
+							return err
+						}
+						value, err := url.QueryUnescape(s[indexValue:])
+						if err != nil {
+							return err
+						}
+						peek.AddParam(key, value)
 					} else {
-						txtError = s[indexStart:i]
-					}
-					return ErrorQuery{
-						Index: i,
-						At:    txtError,
+						var txtError string
+						if i < indexStart {
+							txtError = s[i:indexStart]
+						} else {
+							txtError = s[indexStart:i]
+						}
+						return ErrorQuery{
+							Index: i,
+							At:    txtError,
+						}
 					}
 				}
 			}
@@ -402,30 +411,39 @@ func (q *Slice) Parse(s string) error {
 			switch s[i] {
 			case '}', ']':
 			default:
-				if (indexStart < indexValue-1) && (indexValue < i+1) {
-					key, err := url.QueryUnescape(s[indexStart : indexValue-1])
+				peek, err := stack.Peek()
+				if err != nil {
+					return err
+				}
+				switch peek.(type) {
+				case *Slice:
+					value, err := url.QueryUnescape(s[indexStart:])
 					if err != nil {
 						return err
 					}
-					value, err := url.QueryUnescape(s[indexValue:])
-					if err != nil {
-						return err
-					}
-					peek, err := stack.Peek()
-					if err != nil {
-						return err
-					}
-					peek.AddParam(key, value)
-				} else {
-					var txtError string
-					if i < indexStart {
-						txtError = s[i:indexStart]
+					peek.AddParam("", value)
+				default:
+					if (indexStart < indexValue-1) && (indexValue < i+1) {
+						key, err := url.QueryUnescape(s[indexStart : indexValue-1])
+						if err != nil {
+							return err
+						}
+						value, err := url.QueryUnescape(s[indexValue:])
+						if err != nil {
+							return err
+						}
+						peek.AddParam(key, value)
 					} else {
-						txtError = s[indexStart:i]
-					}
-					return ErrorQuery{
-						Index: i,
-						At:    txtError,
+						var txtError string
+						if i < indexStart {
+							txtError = s[i:indexStart]
+						} else {
+							txtError = s[indexStart:i]
+						}
+						return ErrorQuery{
+							Index: i,
+							At:    txtError,
+						}
 					}
 				}
 			}
@@ -606,30 +624,39 @@ func ParseToQuerier(s string) (Querier, error) {
 				switch s[i] {
 				case '}', ']':
 				default:
-					if (indexStart < indexValue-1) && (indexValue < i+1) {
-						key, err := url.QueryUnescape(s[indexStart : indexValue-1])
+					peek, err := stack.Peek()
+					if err != nil {
+						return nil, err
+					}
+					switch peek.(type) {
+					case *Slice:
+						value, err := url.QueryUnescape(s[indexStart:])
 						if err != nil {
 							return nil, err
 						}
-						value, err := url.QueryUnescape(s[indexValue:])
-						if err != nil {
-							return nil, err
-						}
-						peek, err := stack.Peek()
-						if err != nil {
-							return nil, err
-						}
-						peek.AddParam(key, value)
-					} else {
-						var txtError string
-						if i < indexStart {
-							txtError = s[i:indexStart]
+						peek.AddParam("", value)
+					default:
+						if (indexStart < indexValue-1) && (indexValue < i+1) {
+							key, err := url.QueryUnescape(s[indexStart : indexValue-1])
+							if err != nil {
+								return nil, err
+							}
+							value, err := url.QueryUnescape(s[indexValue:])
+							if err != nil {
+								return nil, err
+							}
+							peek.AddParam(key, value)
 						} else {
-							txtError = s[indexStart:i]
-						}
-						return nil, ErrorQuery{
-							Index: i,
-							At:    txtError,
+							var txtError string
+							if i < indexStart {
+								txtError = s[i:indexStart]
+							} else {
+								txtError = s[indexStart:i]
+							}
+							return nil, ErrorQuery{
+								Index: i,
+								At:    txtError,
+							}
 						}
 					}
 				}
