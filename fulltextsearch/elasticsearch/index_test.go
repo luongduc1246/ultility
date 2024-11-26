@@ -28,6 +28,25 @@ func TestConnect(t *testing.T) {
 	fmt.Println(err)
 	fmt.Println(info)
 }
+func TestCallMany(t *testing.T) {
+	es := NewElasticSearch(elasticsearch.Config{
+		Addresses: []string{
+			"http://localhost:9200",
+		},
+	})
+	c := make(chan int)
+	for i := 0; i < 100; i++ {
+		go func() {
+			es.client.Info().Do(context.Background())
+
+		}()
+		if i == 99 {
+			c <- 1
+		}
+	}
+	a := <-c
+	fmt.Println(a)
+}
 func TestCreateIndex(t *testing.T) {
 	es := NewElasticSearch(elasticsearch.Config{
 		Addresses: []string{
